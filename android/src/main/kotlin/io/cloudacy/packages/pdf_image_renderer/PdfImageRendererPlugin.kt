@@ -1,4 +1,4 @@
-package io.cloudacy.package.pdf_image_renderer
+package io.cloudacy.packages.pdf_image_renderer
 
 import androidx.annotation.NonNull;
 import io.flutter.embedding.engine.plugins.FlutterPlugin

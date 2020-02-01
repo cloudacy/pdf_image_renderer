@@ -1,4 +1,4 @@
-group 'io.cloudacy.package.pdf_image_renderer'
+group 'io.cloudacy.packages.pdf_image_renderer'
 version '1.0-SNAPSHOT'
 
 buildscript {
