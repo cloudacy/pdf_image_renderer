@@ -1,0 +1,21 @@
+name: pdf_image_renderer
+description: Renders PDFs to bitmaps using native renderers.
+version: 0.0.1+1
+author:
+homepage: https://cloudacy.com/
+
+environment:
+  sdk: ">=2.1.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    androidPackage: io.cloudacy.package.pdf_image_renderer
+    pluginClass: PdfImageRendererPlugin
