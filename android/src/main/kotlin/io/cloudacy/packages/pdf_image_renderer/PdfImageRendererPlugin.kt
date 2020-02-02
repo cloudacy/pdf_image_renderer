@@ -1,12 +1,23 @@
 package io.cloudacy.packages.pdf_image_renderer
 
-import androidx.annotation.NonNull;
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Rect
+import android.graphics.pdf.PdfRenderer
+import android.graphics.pdf.PdfRenderer.Page
+import android.os.Handler
+import android.os.Looper
+import android.os.ParcelFileDescriptor
+import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
+import java.io.ByteArrayOutputStream
+import java.io.File
 
 /** PdfImageRendererPlugin */
 public class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
@@ -33,13 +44,78 @@ public class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
-    if (call.method == "getPlatformVersion") {
-      result.success("Android ${android.os.Build.VERSION.RELEASE}")
+    if (call.method == "renderPDFPage") {
+      renderPDFPageMethod(call, result)
     } else {
       result.notImplemented()
     }
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+  }
+
+  private fun renderPDFPageMethod(@NonNull call: MethodCall, @NonNull result: Result) {
+    Thread {
+      val handler = Handler(Looper.getMainLooper())
+      val path = call.argument<String>("path")
+      val page = call.argument<Int>("page")
+      val x = call.argument<Int>("x")
+      val y = call.argument<Int>("y")
+      val width = call.argument<Int>("width")
+      val height = call.argument<Int>("height")
+      val scale = call.argument<Int>("scale")
+      val background = call.argument<String>("background")
+      if (path == null || page == null || x == null || y == null || width == null || height == null || scale == null) {
+        handler.post {
+          result.error("INVALID_ARGUMENTS", "Invalid or missing arguments.", null)
+        }
+        return@Thread
+      }
+
+      val file = File(path)
+      val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+      val bitmap = fd.use {
+        renderPDFPage(fd, page, x, y, width, height, scale, background)
+      }
+
+      val byteStream = ByteArrayOutputStream()
+      bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream)
+      handler.post {
+        result.success(byteStream.toByteArray())
+      }
+    }.start()
+  }
+
+  private fun renderPDFPage(fd: ParcelFileDescriptor, pageIndex: Int, x: Int, y: Int, width: Int, height: Int, scale: Int, background: String?): Bitmap {
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val parsedBackground = try {
+      if (background == null)
+        Color.parseColor(background)
+      else
+        Color.TRANSPARENT
+    } catch (e: Exception) {
+      Color.TRANSPARENT
+    }
+    bitmap.eraseColor(parsedBackground)
+
+    val matrix = Matrix()
+    matrix.postTranslate(-x.toFloat(), -y.toFloat())
+    if (scale != 1)
+      matrix.postScale(scale.toFloat(), scale.toFloat())
+
+    val renderer = PdfRenderer(fd)
+    renderer.use {
+      val page = renderer.openPage(pageIndex)
+      page.use {
+        page.render(
+          bitmap,
+          Rect(0, 0, width, height),
+          matrix,
+          Page.RENDER_MODE_FOR_DISPLAY
+        )
+      }
+    }
+
+    return bitmap
   }
 }
