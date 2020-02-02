@@ -66,15 +66,21 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
     }
 
     val file = File(path)
-    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-
-    result.success(getPDFPageCount(fd))
+    try {
+      val count = getPDFPageCount(file)
+      result.success(count)
+    } catch (e: Exception) {
+      result.error("EXECUTION_ERROR", e.message, null)
+    }
   }
 
-  private fun getPDFPageCount(fd: ParcelFileDescriptor): Int {
-    val renderer = PdfRenderer(fd)
-    renderer.use {
-      return renderer.pageCount
+  private fun getPDFPageCount(file: File): Int {
+    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+    fd.use {
+      val renderer = PdfRenderer(fd)
+      renderer.use {
+        return renderer.pageCount
+      }
     }
   }
 
@@ -87,20 +93,26 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
     }
 
     val file = File(path)
-    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-
-    result.success(getPDFPageSize(fd, page))
+    try {
+      val pageSize = getPDFPageSize(file, page)
+      result.success(pageSize)
+    } catch (e: Exception) {
+      result.error("EXECUTION_ERROR", e.message, null)
+    }
   }
 
-  private fun getPDFPageSize(fd: ParcelFileDescriptor, pageIndex: Int): Map<String, Int> {
-    val renderer = PdfRenderer(fd)
-    renderer.use {
-      val page = renderer.openPage(pageIndex)
-      page.use {
-        return mapOf(
-          "width" to page.width,
-          "height" to page.height
-        )
+  private fun getPDFPageSize(file: File, pageIndex: Int): Map<String, Int> {
+    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+    fd.use {
+      val renderer = PdfRenderer(fd)
+      renderer.use {
+        val page = renderer.openPage(pageIndex)
+        page.use {
+          return mapOf(
+            "width" to page.width,
+            "height" to page.height
+          )
+        }
       }
     }
   }
@@ -124,21 +136,24 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
       }
 
       val file = File(path)
-      val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-      val bitmap = fd.use {
-        renderPDFPage(fd, page, x, y, width, height, scale, background)
-      }
+      try {
+        val bitmap = renderPDFPage(file, page, x, y, width, height, scale, background)
 
-      val byteStream = ByteArrayOutputStream()
-      bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream)
-      handler.post {
-        result.success(byteStream.toByteArray())
+        val byteStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream)
+        handler.post {
+          result.success(byteStream.toByteArray())
+        }
+      } catch (e: Exception) {
+        handler.post {
+          result.error("EXECUTION_ERROR", e.message, null)
+        }
       }
     }.start()
   }
 
-  private fun renderPDFPage(fd: ParcelFileDescriptor, pageIndex: Int, x: Int, y: Int, width: Int, height: Int, scale: Int, background: String?): Bitmap {
-    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+  private fun renderPDFPage(file: File, pageIndex: Int, x: Int, y: Int, width: Int, height: Int, scale: Int, background: String?): Bitmap {
+    val bitmap = Bitmap.createBitmap(width * scale, height * scale, Bitmap.Config.ARGB_8888)
     val parsedBackground = try {
       if (background == null)
         Color.parseColor(background)
@@ -150,20 +165,24 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
     bitmap.eraseColor(parsedBackground)
 
     val matrix = Matrix()
+    println("$x, $y, $width, $height, $scale")
     matrix.postTranslate(-x.toFloat(), -y.toFloat())
     if (scale != 1)
       matrix.postScale(scale.toFloat(), scale.toFloat())
 
-    val renderer = PdfRenderer(fd)
-    renderer.use {
-      val page = renderer.openPage(pageIndex)
-      page.use {
-        page.render(
-          bitmap,
-          Rect(0, 0, width, height),
-          matrix,
-          Page.RENDER_MODE_FOR_DISPLAY
-        )
+    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+    fd.use {
+      val renderer = PdfRenderer(fd)
+      renderer.use {
+        val page = renderer.openPage(pageIndex)
+        page.use {
+          page.render(
+            bitmap,
+            Rect(0, 0, width * scale, height * scale),
+            matrix,
+            Page.RENDER_MODE_FOR_DISPLAY
+          )
+        }
       }
     }
 
