@@ -20,10 +20,10 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 
 /** PdfImageRendererPlugin */
-public class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
+class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     val channel = MethodChannel(flutterPluginBinding.getFlutterEngine().getDartExecutor(), "pdf_image_renderer")
-    channel.setMethodCallHandler(PdfImageRendererPlugin());
+    channel.setMethodCallHandler(PdfImageRendererPlugin())
   }
 
   // This static function is optional and equivalent to onAttachedToEngine. It supports the old
@@ -48,12 +48,34 @@ public class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
       renderPDFPageMethod(call, result)
     } else if (call.method == "getPDFPageSize") {
       getPDFPageSizeMethod(call, result)
+    } else if (call.method == "getPDFPageCount") {
+      getPDFPageCountMethod(call, result)
     } else {
       result.notImplemented()
     }
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+  }
+
+  private fun getPDFPageCountMethod(@NonNull call: MethodCall, @NonNull result: Result) {
+    val path = call.argument<String>("path")
+    if (path == null) {
+      result.error("INVALID_ARGUMENTS", "Invalid or missing arguments.", null)
+      return
+    }
+
+    val file = File(path)
+    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+
+    result.success(getPDFPageCount(fd))
+  }
+
+  private fun getPDFPageCount(fd: ParcelFileDescriptor): Int {
+    val renderer = PdfRenderer(fd)
+    renderer.use {
+      return renderer.pageCount
+    }
   }
 
   private fun getPDFPageSizeMethod(@NonNull call: MethodCall, @NonNull result: Result) {

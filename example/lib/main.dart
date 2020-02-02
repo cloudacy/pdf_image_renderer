@@ -12,6 +12,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  int count;
+  PdfImageRendererPageSize size;
   Uint8List image;
 
   @override
@@ -33,12 +35,27 @@ class _MyAppState extends State<MyApp> {
                 child: Text('Select PDF'),
                 onPressed: () async {
                   String path = await FilePicker.getFilePath(type: FileType.CUSTOM, fileExtension: 'pdf');
-                  image = await PdfImageRenderer.renderPDF(path);
-                  print(image);
+                  count = await PdfImageRenderer.getPDFPageCount(path: path);
+                  size = await PdfImageRenderer.getPDFPageSize(path: path, page: 0);
+                  image = await PdfImageRenderer.renderPDFPage(
+                    path: path,
+                    page: 0,
+                    x: 0,
+                    y: 0,
+                    width: 100,
+                    height: 100,
+                    scale: 1,
+                    background: '#ffffffff',
+                  );
                   setState(() {});
                 },
               ),
-              if (image != null) Image(image: MemoryImage(image))
+              if (count != null) Text('The selected PDF has $count pages.'),
+              if (image != null) Text('It is ${size.width} wide and ${size.height} high.'),
+              if (image != null) ...[
+                Text('Rendered image area:'),
+                Image(image: MemoryImage(image)),
+              ],
             ],
           ),
         ),
