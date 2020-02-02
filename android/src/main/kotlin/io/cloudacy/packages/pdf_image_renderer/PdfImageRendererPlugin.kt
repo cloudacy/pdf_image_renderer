@@ -46,12 +46,41 @@ public class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     if (call.method == "renderPDFPage") {
       renderPDFPageMethod(call, result)
+    } else if (call.method == "getPDFPageSize") {
+      getPDFPageSizeMethod(call, result)
     } else {
       result.notImplemented()
     }
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+  }
+
+  private fun getPDFPageSizeMethod(@NonNull call: MethodCall, @NonNull result: Result) {
+    val path = call.argument<String>("path")
+    val page = call.argument<Int>("page")
+    if (path == null || page == null) {
+      result.error("INVALID_ARGUMENTS", "Invalid or missing arguments.", null)
+      return
+    }
+
+    val file = File(path)
+    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+
+    result.success(getPDFPageSize(fd, page))
+  }
+
+  private fun getPDFPageSize(fd: ParcelFileDescriptor, pageIndex: Int): Map<String, Int> {
+    val renderer = PdfRenderer(fd)
+    renderer.use {
+      val page = renderer.openPage(pageIndex)
+      page.use {
+        return mapOf(
+          "width" to page.width,
+          "height" to page.height
+        )
+      }
+    }
   }
 
   private fun renderPDFPageMethod(@NonNull call: MethodCall, @NonNull result: Result) {
