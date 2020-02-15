@@ -55,7 +55,7 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     
     let pdf = try getPdfDocument(call)
     
-    guard let page = pdf.page(at: pageIndex + 1) else {
+    guard let page = pdf.page(at: pageIndex) else {
       throw PdfImageRendererError.openPageError(pageIndex)
     }
     
