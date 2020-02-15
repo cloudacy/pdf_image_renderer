@@ -16,9 +16,30 @@ class _MyAppState extends State<MyApp> {
   PdfImageRendererPageSize size;
   Uint8List image;
 
+  String path;
+
+  bool cropped = false;
+
   @override
   void initState() {
     super.initState();
+  }
+
+  rerender() async {
+    final i = await PdfImageRenderer.renderPDFPage(
+      path: path,
+      page: 0,
+      x: 0,
+      y: 0,
+      width: cropped ? 100 : size.width,
+      height: cropped ? 100 : size.height,
+      scale: 1,
+      background: '#ffffffff',
+    );
+
+    setState(() {
+      image = i;
+    });
   }
 
   @override
@@ -27,6 +48,14 @@ class _MyAppState extends State<MyApp> {
       home: Scaffold(
         appBar: AppBar(
           title: const Text('Plugin example app'),
+          actions: <Widget>[
+            IconButton(
+                icon: Icon(Icons.crop),
+                onPressed: () {
+                  cropped = !cropped;
+                  rerender();
+                })
+          ],
         ),
         body: Center(
           child: Column(
@@ -34,20 +63,11 @@ class _MyAppState extends State<MyApp> {
               RaisedButton(
                 child: Text('Select PDF'),
                 onPressed: () async {
-                  String path = await FilePicker.getFilePath(type: FileType.CUSTOM, fileExtension: 'pdf');
+                  path = await FilePicker.getFilePath(type: FileType.CUSTOM, fileExtension: 'pdf');
                   count = await PdfImageRenderer.getPDFPageCount(path: path);
                   size = await PdfImageRenderer.getPDFPageSize(path: path, page: 0);
-                  image = await PdfImageRenderer.renderPDFPage(
-                    path: path,
-                    page: 0,
-                    x: 0,
-                    y: 0,
-                    width: 100,
-                    height: 100,
-                    scale: 1,
-                    background: '#ffffffff',
-                  );
-                  setState(() {});
+
+                  rerender();
                 },
               ),
               if (count != null) Text('The selected PDF has $count pages.'),
