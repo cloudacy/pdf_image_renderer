@@ -191,10 +191,16 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
   
   private func handlePdfError(_ error: Error) -> FlutterError {
     switch error {
+    case PdfImageRendererError.badArguments:
+      return FlutterError(code: "BAD_ARGS", message: "Bad arguments type", details: "Arguments have to be of type Dictionary<String, Any>.")
     case PdfImageRendererError.badArgument(let argument):
       return FlutterError(code: "BAD_ARGS", message: "Argument \(argument) not set", details: nil)
+    case PdfImageRendererError.openError(let path):
+      return FlutterError(code: "ERR_OPEN", message: "Error while opening the pdf document for path \(path))", details: nil)
+    case PdfImageRendererError.openPageError(let page):
+      return FlutterError(code: "ERR_OPEN", message: "Error while opening the pdf page \(page))", details: nil)
     default:
-      return FlutterError(code: "UNKNOWN_ERROR", message: "An unknown error occured.", details: nil)
+      return FlutterError(code: "UNKNOWN_ERROR", message: "An unknown error occured.", details: error)
     }
   }
 }
