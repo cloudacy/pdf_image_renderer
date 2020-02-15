@@ -11,11 +11,11 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "renderPDFPage":
-      result(renderPDFPageHandler(call))
+      renderPDFPageHandler(call, result: result)
     case "getPDFPageSize":
-      result(pdfPageSizeHandler(call))
+      pdfPageSizeHandler(call, result: result)
     case "getPDFPageCount":
-      result(pdfPageCountHandler(call))
+      pdfPageCountHandler(call, result: result)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -102,66 +102,91 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     return image.pngData()
   }
   
-  private func renderPDFPageHandler(_ call: FlutterMethodCall) -> Any? {
-    let arguments: Dictionary<String, Any>
-    let page: CGPDFPage
+  private func renderPDFPageHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    DispatchQueue.global(qos: .background).async {
+      let arguments: Dictionary<String, Any>
+      let page: CGPDFPage
+
+      do {
+        page = try self.getPdfPage(call)
+        arguments = try self.getDictionaryArguments(call)
+      } catch {
+        DispatchQueue.main.async {
+          result(self.handlePdfError(error))
+        }
+        return
+      }
+      
+      guard let width = arguments["width"] as? Int else {
+        DispatchQueue.main.async {
+          result(self.handlePdfError(PdfImageRendererError.badArgument("width")))
+        }
+        return
+      }
+      
+      guard let height = arguments["height"] as? Int else {
+        DispatchQueue.main.async {
+          result(self.handlePdfError(PdfImageRendererError.badArgument("height")))
+        }
+        return
+      }
+      
+      let scale = Double(arguments["scale"] as? Int ?? 1)
+      
+      let x = arguments["x"] as? Int ?? 0
+      let y = arguments["y"] as? Int ?? 0
+      
+      var data: Data?
     
-    do {
-      page = try getPdfPage(call)
-      arguments = try getDictionaryArguments(call)
-    } catch {
-      return handlePdfError(error)
-    }
-    
-    guard let width = arguments["width"] as? Int else {
-      return handlePdfError(PdfImageRendererError.badArgument("width"))
-    }
-    
-    guard let height = arguments["height"] as? Int else {
-      return handlePdfError(PdfImageRendererError.badArgument("height"))
-    }
-    
-    let scale = Double(arguments["scale"] as? Int ?? 1)
-    
-    let x = arguments["x"] as? Int ?? 0
-    let y = arguments["y"] as? Int ?? 0
-    
-    var data: Data?
-    
-    DispatchQueue.global(qos: .background).sync {
       data = self.renderPdfPage(page: page, width: width, height: height, scale: scale, x: x, y: y)
+      
+      DispatchQueue.main.async {
+        result(data)
+      }
     }
-
-    return data
   }
 
-  private func pdfPageCountHandler(_ call: FlutterMethodCall) -> Any? {
-    let pdf: CGPDFDocument
-    
-    do {
-      pdf = try getPdfDocument(call)
-    } catch {
-      return handlePdfError(error)
+  private func pdfPageCountHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    DispatchQueue.global(qos: .background).async {
+      let pdf: CGPDFDocument
+      
+      do {
+        pdf = try self.getPdfDocument(call)
+      } catch {
+        DispatchQueue.main.async {
+          result(self.handlePdfError(error))
+        }
+        return
+      }
+
+      DispatchQueue.main.async {
+        result(pdf.numberOfPages)
+      }
     }
-    
-    return pdf.numberOfPages
   }
 
-  private func pdfPageSizeHandler(_ call: FlutterMethodCall) -> Any? {
-    let page: CGPDFPage
-    
-    do {
-      page = try getPdfPage(call)
-    } catch {
-      return handlePdfError(error)
-    }
+  private func pdfPageSizeHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    DispatchQueue.global(qos: .background).async {
+      let page: CGPDFPage
+      
+      do {
+        page = try self.getPdfPage(call)
+      } catch {
+        DispatchQueue.main.async {
+          result(self.handlePdfError(error))
+        }
+        return
+      }
 
-    let pageRect = page.getBoxRect(CGPDFBox.mediaBox)
-    
-    return [
-      "width": Int(pageRect.width),
-      "height": Int(pageRect.height)
-    ]
+      let pageRect = page.getBoxRect(CGPDFBox.mediaBox)
+
+      DispatchQueue.main.async {
+        result([
+          "width": Int(pageRect.width),
+          "height": Int(pageRect.height)
+        ])
+      }
+    }
   }
   
   private func handlePdfError(_ error: Error) -> FlutterError {
