@@ -10,6 +10,8 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
+    case "renderPDFPage":
+      result(renderPDFPageHandler(call))
     case "getPDFPageSize":
       result(pdfPageSizeHandler(call))
     case "getPDFPageCount":
@@ -19,46 +21,131 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     }
   }
   
-  private func pdfPageCountHandler(_ call: FlutterMethodCall) -> Any? {
+  private func getDictionaryArguments(_ call: FlutterMethodCall) throws -> Dictionary<String, Any> {
     guard let arguments = call.arguments as? Dictionary<String, Any> else {
-      return PdfImageRendererError.BadArguments(call)
+      throw PdfImageRendererError.badArguments
     }
     
+    return arguments
+  }
+  
+  private func getPdfDocument(_ call: FlutterMethodCall) throws -> CGPDFDocument {
+    let arguments = try getDictionaryArguments(call)
+    
     guard let path = arguments["path"] as? String else {
-      return PdfImageRendererError.BadArgument("path")
+      throw PdfImageRendererError.badArgument("path")
     }
     
     guard let pdf = CGPDFDocument(URL(fileURLWithPath: path, isDirectory: false) as CFURL) else {
-      return PdfImageRendererError.PDFOpenError(path)
+      throw PdfImageRendererError.openError(path)
     }
     
-    return pdf.numberOfPages
+    return pdf
   }
   
-  private func pdfPageSizeHandler(_ call: FlutterMethodCall) -> Any? {
-    guard let arguments = call.arguments as? Dictionary<String, Any> else {
-      return PdfImageRendererError.BadArguments(call)
-    }
-    
-    guard let path = arguments["path"] as? String else {
-      return PdfImageRendererError.BadArgument("path")
-    }
-    
+  private func getPdfPage(_ call: FlutterMethodCall) throws -> CGPDFPage {
+    let arguments = try getDictionaryArguments(call)
+
     guard var pageIndex = arguments["page"] as? Int else {
-      return PdfImageRendererError.BadArgument("page")
+      throw PdfImageRendererError.badArgument("page")
     }
     
     // PDF Pages in swift start with 1, so we add 1 to the pageIndex
     pageIndex += 1
     
-    guard let pdf = CGPDFDocument(URL(fileURLWithPath: path, isDirectory: false) as CFURL) else {
-      return PdfImageRendererError.PDFOpenError(path)
-    }
+    let pdf = try getPdfDocument(call)
     
     guard let page = pdf.page(at: pageIndex + 1) else {
-      return PdfImageRendererError.PDFPageOpenError(pageIndex)
+      throw PdfImageRendererError.openPageError(pageIndex)
     }
     
+    return page
+  }
+  
+  private func renderPDFPageHandler(_ call: FlutterMethodCall) -> Any? {
+    let arguments: Dictionary<String, Any>
+    let page: CGPDFPage
+    
+    do {
+      page = try getPdfPage(call)
+      arguments = try getDictionaryArguments(call)
+    } catch {
+      return handlePdfError(error)
+    }
+    
+    guard let width = arguments["width"] as? Int else {
+      return handlePdfError(PdfImageRendererError.badArgument("width"))
+    }
+    
+    guard let height = arguments["height"] as? Int else {
+      return handlePdfError(PdfImageRendererError.badArgument("height"))
+    }
+    
+    let image: UIImage
+    let pageRect = page.getBoxRect(CGPDFBox.mediaBox)
+    
+    let scale = Double(arguments["scale"] as? Int ?? 1)
+    
+    let x = arguments["x"] as? Int ?? 0
+    let y = arguments["y"] as? Int ?? 0
+    
+    let size = CGSize(width: Double(width) * scale, height: Double(height) * scale)
+    let scaleCGFloat = CGFloat(scale)
+    let xCGFloat = CGFloat(-x) * scaleCGFloat
+    let yCGFloat = CGFloat(-y) * scaleCGFloat
+
+    if #available(iOS 10.0, *) {
+      let renderer = UIGraphicsImageRenderer(size: size)
+
+      image = renderer.image {ctx in
+        UIColor.white.set()
+        ctx.fill(CGRect(x: 0, y: 0, width: Double(width) * scale, height: Double(height) * scale))
+
+        ctx.cgContext.translateBy(x: xCGFloat, y: pageRect.size.height * scaleCGFloat + yCGFloat)
+        ctx.cgContext.scaleBy(x: scaleCGFloat, y: -scaleCGFloat)
+
+        ctx.cgContext.drawPDFPage(page)
+      }
+    } else {
+      // Fallback on earlier versions
+      UIGraphicsBeginImageContext(size)
+      let ctx = UIGraphicsGetCurrentContext()!
+      UIColor.white.set()
+      ctx.fill(CGRect(x: 0, y: 0, width: Double(width) * scale, height: Double(height) * scale))
+
+      ctx.translateBy(x: xCGFloat, y: pageRect.size.height * scaleCGFloat + yCGFloat)
+      ctx.scaleBy(x: scaleCGFloat, y: -scaleCGFloat)
+
+      ctx.drawPDFPage(page)
+
+      image = UIGraphicsGetImageFromCurrentImageContext()!
+      UIGraphicsEndImageContext()
+    }
+
+    return image.pngData()
+  }
+
+  private func pdfPageCountHandler(_ call: FlutterMethodCall) -> Any? {
+    let pdf: CGPDFDocument
+    
+    do {
+      pdf = try getPdfDocument(call)
+    } catch {
+      return handlePdfError(error)
+    }
+    
+    return pdf.numberOfPages
+  }
+
+  private func pdfPageSizeHandler(_ call: FlutterMethodCall) -> Any? {
+    let page: CGPDFPage
+    
+    do {
+      page = try getPdfPage(call)
+    } catch {
+      return handlePdfError(error)
+    }
+
     let pageRect = page.getBoxRect(CGPDFBox.mediaBox)
     
     return [
@@ -66,26 +153,20 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
       "height": Int(pageRect.height)
     ]
   }
+  
+  private func handlePdfError(_ error: Error) -> FlutterError {
+    switch error {
+    case PdfImageRendererError.badArgument(let argument):
+      return FlutterError(code: "BAD_ARGS", message: "Argument \(argument) not set", details: nil)
+    default:
+      return FlutterError(code: "UNKNOWN_ERROR", message: "An unknown error occured.", details: nil)
+    }
+  }
 }
 
-class PdfImageRendererError: FlutterError {
-  public static func BadArguments(_ call: FlutterMethodCall) -> FlutterError {
-    return self.init(code: "BAD_ARGS", message: "Bad arguments type", details: "Arguments have to be of type Dictionary<String, Any> but are \(type(of: call.arguments))")
-  }
-  
-  public static func BadArgument(_ argument: String) -> FlutterError {
-    return self.init(code: "BAD_ARGS", message: "Argument '\(argument)' not set", details: nil)
-  }
-  
-  public static func PDFOpenError(_ path: String) -> FlutterError {
-    return self.init(code: "ERR_OPEN", message: "Error while opening the pdf document for path \(path))", details: nil)
-  }
-  
-  public static func PDFPageOpenError(_ page: Int) -> FlutterError {
-    return self.init(code: "ERR_OPEN", message: "Error while opening the pdf page \(page))", details: nil)
-  }
-  
-  public static func PDFDictionaryOpenError(_ page: Int) -> FlutterError {
-    return self.init(code: "ERR_OPEN", message: "Error while opening the pdf page dictionary for page \(page)", details: nil)
-  }
+enum PdfImageRendererError: Error {
+  case badArguments
+  case badArgument(_ argument: String)
+  case openError(_ path: String)
+  case openPageError(_ page: Int)
 }
