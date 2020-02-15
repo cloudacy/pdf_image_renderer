@@ -13,6 +13,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   int count;
+  int pageIndex = 0;
   PdfImageRendererPageSize size;
   Uint8List image;
 
@@ -26,9 +27,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   rerender() async {
+    size = await PdfImageRenderer.getPDFPageSize(path: path, page: pageIndex);
     final i = await PdfImageRenderer.renderPDFPage(
       path: path,
-      page: 0,
+      page: pageIndex,
       x: 0,
       y: 0,
       width: cropped ? 100 : size.width,
@@ -65,7 +67,6 @@ class _MyAppState extends State<MyApp> {
                 onPressed: () async {
                   path = await FilePicker.getFilePath(type: FileType.CUSTOM, fileExtension: 'pdf');
                   count = await PdfImageRenderer.getPDFPageCount(path: path);
-                  size = await PdfImageRenderer.getPDFPageSize(path: path, page: 0);
 
                   rerender();
                 },
@@ -76,6 +77,32 @@ class _MyAppState extends State<MyApp> {
                 Text('Rendered image area:'),
                 Image(image: MemoryImage(image)),
               ],
+              if (count != null)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    FlatButton.icon(
+                      onPressed: pageIndex > 0
+                          ? () {
+                              pageIndex -= 1;
+                              rerender();
+                            }
+                          : null,
+                      icon: Icon(Icons.chevron_left),
+                      label: Text('Previous'),
+                    ),
+                    FlatButton.icon(
+                      onPressed: pageIndex < (count - 1)
+                          ? () {
+                              pageIndex += 1;
+                              rerender();
+                            }
+                          : null,
+                      icon: Icon(Icons.chevron_right),
+                      label: Text('Next'),
+                    )
+                  ],
+                )
             ],
           ),
         ),
