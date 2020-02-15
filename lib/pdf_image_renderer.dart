@@ -24,7 +24,7 @@ class PdfImageRenderer {
     return count;
   }
 
-  /// Returns an instance of PdfImageRendererPageSize, holding the width and height
+  /// Returns an instance of PdfImageRendererPageSize, holding the width and height in points
   /// of the page at given index of the PDF located at given path.
   static Future<PdfImageRendererPageSize> getPDFPageSize({
     @required String path,
