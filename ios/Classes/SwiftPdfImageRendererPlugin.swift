@@ -62,33 +62,10 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     return page
   }
   
-  private func renderPDFPageHandler(_ call: FlutterMethodCall) -> Any? {
-    let arguments: Dictionary<String, Any>
-    let page: CGPDFPage
-    
-    do {
-      page = try getPdfPage(call)
-      arguments = try getDictionaryArguments(call)
-    } catch {
-      return handlePdfError(error)
-    }
-    
-    guard let width = arguments["width"] as? Int else {
-      return handlePdfError(PdfImageRendererError.badArgument("width"))
-    }
-    
-    guard let height = arguments["height"] as? Int else {
-      return handlePdfError(PdfImageRendererError.badArgument("height"))
-    }
-    
+  private func renderPdfPage(page: CGPDFPage, width: Int, height: Int, scale: Double, x: Int, y: Int) -> Data? {
     let image: UIImage
+    
     let pageRect = page.getBoxRect(CGPDFBox.mediaBox)
-    
-    let scale = Double(arguments["scale"] as? Int ?? 1)
-    
-    let x = arguments["x"] as? Int ?? 0
-    let y = arguments["y"] as? Int ?? 0
-    
     let size = CGSize(width: Double(width) * scale, height: Double(height) * scale)
     let scaleCGFloat = CGFloat(scale)
     let xCGFloat = CGFloat(-x) * scaleCGFloat
@@ -121,8 +98,41 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
       image = UIGraphicsGetImageFromCurrentImageContext()!
       UIGraphicsEndImageContext()
     }
-
+    
     return image.pngData()
+  }
+  
+  private func renderPDFPageHandler(_ call: FlutterMethodCall) -> Any? {
+    let arguments: Dictionary<String, Any>
+    let page: CGPDFPage
+    
+    do {
+      page = try getPdfPage(call)
+      arguments = try getDictionaryArguments(call)
+    } catch {
+      return handlePdfError(error)
+    }
+    
+    guard let width = arguments["width"] as? Int else {
+      return handlePdfError(PdfImageRendererError.badArgument("width"))
+    }
+    
+    guard let height = arguments["height"] as? Int else {
+      return handlePdfError(PdfImageRendererError.badArgument("height"))
+    }
+    
+    let scale = Double(arguments["scale"] as? Int ?? 1)
+    
+    let x = arguments["x"] as? Int ?? 0
+    let y = arguments["y"] as? Int ?? 0
+    
+    var data: Data?
+    
+    DispatchQueue.global(qos: .background).sync {
+      data = self.renderPdfPage(page: page, width: width, height: height, scale: scale, x: x, y: y)
+    }
+
+    return data
   }
 
   private func pdfPageCountHandler(_ call: FlutterMethodCall) -> Any? {
