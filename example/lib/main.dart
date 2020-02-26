@@ -12,12 +12,12 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  int count;
   int pageIndex = 0;
-  PdfImageRendererPageSize size;
   Uint8List image;
 
-  String path;
+  PdfImageRendererPdf pdf;
+  int count;
+  PdfImageRendererPageSize size;
 
   bool cropped = false;
 
@@ -26,11 +26,10 @@ class _MyAppState extends State<MyApp> {
     super.initState();
   }
 
-  rerender() async {
-    size = await PdfImageRenderer.getPDFPageSize(path: path, page: pageIndex);
-    final i = await PdfImageRenderer.renderPDFPage(
-      path: path,
-      page: pageIndex,
+  renderPage() async {
+    size = await pdf.getPageSize(pageIndex: pageIndex);
+    final i = await pdf.renderPage(
+      pageIndex: pageIndex,
       x: 0,
       y: 0,
       width: cropped ? 100 : size.width,
@@ -44,6 +43,18 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  openPdf({@required String path}) async {
+    if (pdf != null) {
+      await pdf.close();
+    }
+    pdf = PdfImageRendererPdf(path: path);
+    await pdf.open();
+  }
+
+  openPdfPage({@required int pageIndex}) async {
+    await pdf.openPage(pageIndex: pageIndex);
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -55,7 +66,7 @@ class _MyAppState extends State<MyApp> {
                 icon: Icon(Icons.crop),
                 onPressed: () {
                   cropped = !cropped;
-                  rerender();
+                  renderPage();
                 })
           ],
         ),
@@ -65,10 +76,15 @@ class _MyAppState extends State<MyApp> {
               RaisedButton(
                 child: Text('Select PDF'),
                 onPressed: () async {
-                  path = await FilePicker.getFilePath(type: FileType.CUSTOM, fileExtension: 'pdf');
-                  count = await PdfImageRenderer.getPDFPageCount(path: path);
+                  String path = await FilePicker.getFilePath(type: FileType.CUSTOM, fileExtension: 'pdf');
 
-                  rerender();
+                  if (path != null) {
+                    await openPdf(path: path);
+                    pageIndex = 0;
+                    count = await pdf.getPageCount();
+                    await openPdfPage(pageIndex: pageIndex);
+                    renderPage();
+                  }
                 },
               ),
               if (count != null) Text('The selected PDF has $count pages.'),
@@ -83,9 +99,10 @@ class _MyAppState extends State<MyApp> {
                   children: <Widget>[
                     FlatButton.icon(
                       onPressed: pageIndex > 0
-                          ? () {
+                          ? () async {
                               pageIndex -= 1;
-                              rerender();
+                              await openPdfPage(pageIndex: pageIndex);
+                              renderPage();
                             }
                           : null,
                       icon: Icon(Icons.chevron_left),
@@ -93,16 +110,17 @@ class _MyAppState extends State<MyApp> {
                     ),
                     FlatButton.icon(
                       onPressed: pageIndex < (count - 1)
-                          ? () {
+                          ? () async {
                               pageIndex += 1;
-                              rerender();
+                              await openPdfPage(pageIndex: pageIndex);
+                              renderPage();
                             }
                           : null,
                       icon: Icon(Icons.chevron_right),
                       label: Text('Next'),
-                    )
+                    ),
                   ],
-                )
+                ),
             ],
           ),
         ),
