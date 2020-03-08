@@ -295,7 +295,7 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
   private fun renderPDFPage(page: Page, x: Int, y: Int, width: Int, height: Int, scale: Float, background: String?): Bitmap {
     val bitmap = Bitmap.createBitmap(floor(width * scale).toInt(), floor(height * scale).toInt(), Bitmap.Config.ARGB_8888)
     val parsedBackground = try {
-      if (background == null)
+      if (background != null)
         Color.parseColor(background)
       else
         Color.TRANSPARENT
