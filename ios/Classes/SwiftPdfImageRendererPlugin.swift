@@ -239,7 +239,7 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
         return
       }
       
-      let scale = Double(arguments["scale"] as? Int ?? 1)
+      let scale = arguments["scale"] as? Double ?? 1.0
       
       let x = arguments["x"] as? Int ?? 0
       let y = arguments["y"] as? Int ?? 0

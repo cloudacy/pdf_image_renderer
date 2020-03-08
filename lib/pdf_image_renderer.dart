@@ -5,8 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 void printTime(String message) {
-  message =
-  "[${DateTime.now()}]: $message";
+  message = "[${DateTime.now()}]: $message";
   debugPrintSynchronously(message);
 }
 
@@ -82,7 +81,7 @@ class PdfImageRendererPdf {
     @required int y,
     @required int width,
     @required int height,
-    @required int scale,
+    @required double scale,
     @required String background,
   }) async {
     if (!pages.contains(pageIndex)) await openPage(pageIndex: pageIndex);
@@ -189,7 +188,7 @@ class PdfImageRenderer {
     @required int y,
     @required int width,
     @required int height,
-    @required int scale,
+    @required double scale,
     @required String background,
   }) async {
     final Uint8List image = await _channel.invokeMethod('renderPDFPage', {

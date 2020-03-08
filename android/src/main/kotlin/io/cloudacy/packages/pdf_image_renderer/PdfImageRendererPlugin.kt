@@ -18,6 +18,7 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
 import java.io.ByteArrayOutputStream
 import java.io.File
+import kotlin.math.floor
 
 /** PdfImageRendererPlugin */
 class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
@@ -266,7 +267,7 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
       val y = call.argument<Int>("y")
       val width = call.argument<Int>("width")
       val height = call.argument<Int>("height")
-      val scale = call.argument<Int>("scale")
+      val scale = call.argument<Double>("scale")
       val background = call.argument<String>("background")
       if (x == null || y == null || width == null || height == null || scale == null) {
         handler.post {
@@ -276,7 +277,7 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
       }
 
       try {
-        val bitmap = renderPDFPage(openPDFPages[id]!![page]!!, x, y, width, height, scale, background)
+        val bitmap = renderPDFPage(openPDFPages[id]!![page]!!, x, y, width, height, scale.toFloat(), background)
 
         val byteStream = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream)
@@ -291,8 +292,8 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
     }.start()
   }
 
-  private fun renderPDFPage(page: Page, x: Int, y: Int, width: Int, height: Int, scale: Int, background: String?): Bitmap {
-    val bitmap = Bitmap.createBitmap(width * scale, height * scale, Bitmap.Config.ARGB_8888)
+  private fun renderPDFPage(page: Page, x: Int, y: Int, width: Int, height: Int, scale: Float, background: String?): Bitmap {
+    val bitmap = Bitmap.createBitmap(floor(width * scale).toInt(), floor(height * scale).toInt(), Bitmap.Config.ARGB_8888)
     val parsedBackground = try {
       if (background == null)
         Color.parseColor(background)
@@ -307,12 +308,12 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
     val matrix = Matrix()
     matrix.postTranslate(-x.toFloat(), -y.toFloat())
 
-    if (scale != 1)
-      matrix.postScale(scale.toFloat(), scale.toFloat())
+    if (scale != 1.0f)
+      matrix.postScale(scale, scale)
 
     page.render(
       bitmap,
-      Rect(0, 0, width * scale, height * scale),
+      Rect(0, 0, floor(width * scale).toInt(), floor(height * scale).toInt()),
       matrix,
       Page.RENDER_MODE_FOR_DISPLAY
     )
