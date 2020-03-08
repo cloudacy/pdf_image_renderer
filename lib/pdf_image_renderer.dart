@@ -4,6 +4,12 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+void printTime(String message) {
+  message =
+  "[${DateTime.now()}]: $message";
+  debugPrintSynchronously(message);
+}
+
 class PdfImageRendererPdf {
   String path;
   int id;
@@ -17,8 +23,12 @@ class PdfImageRendererPdf {
   Future<int> open() async {
     if (id != null) return id;
 
+    printTime("Open PDF $path");
+
     id = await PdfImageRenderer.openPdf(path: path);
     pages = Set();
+
+    printTime("PDF opened.");
 
     return id;
   }
@@ -77,6 +87,8 @@ class PdfImageRendererPdf {
   }) async {
     if (!pages.contains(pageIndex)) await openPage(pageIndex: pageIndex);
 
+    printTime("Before Render!");
+
     Uint8List bytes = await PdfImageRenderer.renderPDFPage(
       pdf: id,
       page: pageIndex,
@@ -87,6 +99,8 @@ class PdfImageRendererPdf {
       scale: scale,
       background: background,
     );
+
+    printTime("After Render!");
 
     return bytes;
   }
