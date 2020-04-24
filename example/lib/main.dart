@@ -71,57 +71,59 @@ class _MyAppState extends State<MyApp> {
           ],
         ),
         body: Center(
-          child: Column(
-            children: <Widget>[
-              RaisedButton(
-                child: Text('Select PDF'),
-                onPressed: () async {
+          child: SingleChildScrollView(
+            child: Column(
+              children: <Widget>[
+                RaisedButton(
+                  child: Text('Select PDF'),
+                  onPressed: () async {
                     String path = await FilePicker.getFilePath(type: FileType.custom, allowedExtensions: ['pdf']);
 
-                  if (path != null) {
-                    await openPdf(path: path);
-                    pageIndex = 0;
-                    count = await pdf.getPageCount();
-                    await openPdfPage(pageIndex: pageIndex);
-                    renderPage();
-                  }
-                },
-              ),
-              if (count != null) Text('The selected PDF has $count pages.'),
-              if (image != null) Text('It is ${size.width} wide and ${size.height} high.'),
-              if (image != null) ...[
-                Text('Rendered image area:'),
-                Image(image: MemoryImage(image)),
-              ],
-              if (count != null)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    FlatButton.icon(
-                      onPressed: pageIndex > 0
-                          ? () async {
-                              pageIndex -= 1;
-                              await openPdfPage(pageIndex: pageIndex);
-                              renderPage();
-                            }
-                          : null,
-                      icon: Icon(Icons.chevron_left),
-                      label: Text('Previous'),
-                    ),
-                    FlatButton.icon(
-                      onPressed: pageIndex < (count - 1)
-                          ? () async {
-                              pageIndex += 1;
-                              await openPdfPage(pageIndex: pageIndex);
-                              renderPage();
-                            }
-                          : null,
-                      icon: Icon(Icons.chevron_right),
-                      label: Text('Next'),
-                    ),
-                  ],
+                    if (path != null) {
+                      await openPdf(path: path);
+                      pageIndex = 0;
+                      count = await pdf.getPageCount();
+                      await openPdfPage(pageIndex: pageIndex);
+                      renderPage();
+                    }
+                  },
                 ),
-            ],
+                if (count != null) Text('The selected PDF has $count pages.'),
+                if (image != null) Text('It is ${size.width} wide and ${size.height} high.'),
+                if (image != null) ...[
+                  Text('Rendered image area:'),
+                  Image(image: MemoryImage(image)),
+                ],
+                if (count != null)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      FlatButton.icon(
+                        onPressed: pageIndex > 0
+                            ? () async {
+                                pageIndex -= 1;
+                                await openPdfPage(pageIndex: pageIndex);
+                                renderPage();
+                              }
+                            : null,
+                        icon: Icon(Icons.chevron_left),
+                        label: Text('Previous'),
+                      ),
+                      FlatButton.icon(
+                        onPressed: pageIndex < (count - 1)
+                            ? () async {
+                                pageIndex += 1;
+                                await openPdfPage(pageIndex: pageIndex);
+                                renderPage();
+                              }
+                            : null,
+                        icon: Icon(Icons.chevron_right),
+                        label: Text('Next'),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),
