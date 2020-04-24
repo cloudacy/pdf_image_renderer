@@ -86,8 +86,6 @@ class PdfImageRendererPdf {
   }) async {
     if (!pages.contains(pageIndex)) await openPage(pageIndex: pageIndex);
 
-    printTime("Before Render!");
-
     Uint8List bytes = await PdfImageRenderer.renderPDFPage(
       pdf: id,
       page: pageIndex,
@@ -98,8 +96,6 @@ class PdfImageRendererPdf {
       scale: scale,
       background: background,
     );
-
-    printTime("After Render!");
 
     return bytes;
   }
