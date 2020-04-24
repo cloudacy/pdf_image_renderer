@@ -18,7 +18,7 @@ flutter:
   plugin:
     platforms:
       android:
-        package: io.cloudacy.packages.pdf_image_renderer
+        package: io.cloudacy.pdf_image_renderer
         pluginClass: PdfImageRendererPlugin
       ios:
         pluginClass: PdfImageRendererPlugin
