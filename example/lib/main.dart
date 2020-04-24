@@ -76,7 +76,7 @@ class _MyAppState extends State<MyApp> {
               RaisedButton(
                 child: Text('Select PDF'),
                 onPressed: () async {
-                  String path = await FilePicker.getFilePath(type: FileType.CUSTOM, fileExtension: 'pdf');
+                    String path = await FilePicker.getFilePath(type: FileType.custom, allowedExtensions: ['pdf']);
 
                   if (path != null) {
                     await openPdf(path: path);
