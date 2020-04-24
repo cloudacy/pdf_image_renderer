@@ -45,22 +45,31 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
-    if (call.method == "openPDF") {
-      openPDF(call, result)
-    } else if (call.method == "closePDF") {
-      closePDF(call, result)
-    } else if (call.method == "openPDFPage") {
-      openPDFPage(call, result)
-    } else if (call.method == "closePDFPage") {
-      closePDFPage(call, result)
-    } else if (call.method == "renderPDFPage") {
-      renderPDFPageMethod(call, result)
-    } else if (call.method == "getPDFPageSize") {
-      getPDFPageSizeMethod(call, result)
-    } else if (call.method == "getPDFPageCount") {
-      getPDFPageCountMethod(call, result)
-    } else {
-      result.notImplemented()
+    when (call.method) {
+      "openPDF" -> {
+        openPDF(call, result)
+      }
+      "closePDF" -> {
+        closePDF(call, result)
+      }
+      "openPDFPage" -> {
+        openPDFPage(call, result)
+      }
+      "closePDFPage" -> {
+        closePDFPage(call, result)
+      }
+      "renderPDFPage" -> {
+        renderPDFPageMethod(call, result)
+      }
+      "getPDFPageSize" -> {
+        getPDFPageSizeMethod(call, result)
+      }
+      "getPDFPageCount" -> {
+        getPDFPageCountMethod(call, result)
+      }
+      else -> {
+        result.notImplemented()
+      }
     }
   }
 
