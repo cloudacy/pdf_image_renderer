@@ -1,7 +1,6 @@
 name: pdf_image_renderer
 description: Renders PDFs to bitmaps using native renderers.
-version: 0.0.1+1
-author:
+version: 0.1.0
 homepage: https://cloudacy.com/
 
 environment:
