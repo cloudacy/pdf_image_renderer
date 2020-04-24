@@ -1,6 +1,6 @@
 name: pdf_image_renderer
 description: A package that allows fast and simple rendering of pdfs using the native renderers of the OS.
-version: 0.1.0
+version: 0.1.1
 homepage: https://cloudacy.com/
 
 environment:
