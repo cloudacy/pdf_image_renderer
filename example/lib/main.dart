@@ -15,6 +15,8 @@ class _MyAppState extends State<MyApp> {
   int pageIndex = 0;
   Uint8List image;
 
+  bool open;
+
   PdfImageRendererPdf pdf;
   int count;
   PdfImageRendererPageSize size;
@@ -49,6 +51,18 @@ class _MyAppState extends State<MyApp> {
     }
     pdf = PdfImageRendererPdf(path: path);
     await pdf.open();
+    setState(() {
+      open = true;
+    });
+  }
+
+  closePdf() async {
+    if (pdf != null) {
+      await pdf.close();
+      setState(() {
+        open = false;
+      });
+    }
   }
 
   openPdfPage({@required int pageIndex}) async {
@@ -62,12 +76,14 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(
           title: const Text('Plugin example app'),
           actions: <Widget>[
-            IconButton(
+            if (open == true)
+              IconButton(
                 icon: Icon(Icons.crop),
                 onPressed: () {
                   cropped = !cropped;
                   renderPage();
-                })
+                },
+              )
           ],
         ),
         body: Center(
@@ -90,11 +106,18 @@ class _MyAppState extends State<MyApp> {
                 ),
                 if (count != null) Text('The selected PDF has $count pages.'),
                 if (image != null) Text('It is ${size.width} wide and ${size.height} high.'),
+                if (open == true)
+                  RaisedButton(
+                    child: Text('Close PDF'),
+                    onPressed: () async {
+                      await closePdf();
+                    },
+                  ),
                 if (image != null) ...[
                   Text('Rendered image area:'),
                   Image(image: MemoryImage(image)),
                 ],
-                if (count != null)
+                if (open == true)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
