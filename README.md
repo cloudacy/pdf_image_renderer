@@ -1,5 +1,7 @@
 # pdf_image_renderer
 
+[![pub package](https://img.shields.io/pub/v/pdf_image_renderer.svg)](https://pub.dartlang.org/packages/pdf_image_renderer)
+
 Renders PDFs to bitmaps using native renderers.
 
 ## Usage
