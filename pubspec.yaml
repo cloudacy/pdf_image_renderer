@@ -16,5 +16,9 @@ dev_dependencies:
 
 flutter:
   plugin:
-    androidPackage: io.cloudacy.packages.pdf_image_renderer
-    pluginClass: PdfImageRendererPlugin
+    platforms:
+      android:
+        package: io.cloudacy.packages.pdf_image_renderer
+        pluginClass: PdfImageRendererPlugin
+      ios:
+        pluginClass: PdfImageRendererPlugin
