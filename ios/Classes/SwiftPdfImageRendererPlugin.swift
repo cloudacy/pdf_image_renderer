@@ -12,6 +12,8 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     switch call.method {
     case "openPDF":
       openPDFHandler(call, result: result)
+    case "closePDF":
+      closePDFHandler(call, result: result)
     case "openPDFPage":
       openPDFPageHandler(call, result: result)
     case "renderPDFPage":
@@ -58,18 +60,12 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     return path.hashValue
   }
   
-  private func closePdfDocument(_ call: FlutterMethodCall) throws {
-    let arguments = try getDictionaryArguments(call)
-    
-    guard let path = arguments["path"] as? String else {
-      throw PdfImageRendererError.badArgument("path")
+  private func closePdfDocument(_ hashValue: Int) throws {   
+    if (openPdfs[hashValue] == nil) {
+      throw PdfImageRendererError.closeError(hashValue)
     }
     
-    if (openPdfs[path.hashValue] == nil) {
-      throw PdfImageRendererError.closeError(path)
-    }
-    
-    openPdfs[path.hashValue] = nil
+    openPdfs[hashValue] = nil
   }
   
   private func getPdfDocument(_ hashValue: Int) throws -> CGPDFDocument {
@@ -140,6 +136,24 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
 
     result(nil)
   }
+
+  private func closePDFHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    NSLog("Closing PDF")
+
+    do {
+      let args = try getDictionaryArguments(call)
+
+      guard let hash = args["pdf"] as? Int else {
+        throw PdfImageRendererError.badArgument("pdf")
+      }
+
+      try closePdfDocument(hash)
+    } catch {
+      result(self.handlePdfError(error))
+    }
+
+    result(nil)
+  }
   
   private func openPDFPageHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     NSLog("Start open page")
@@ -198,16 +212,6 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     pageIndex += 1
     
     return try getPdfPage(hash, pageIndex: pageIndex)
-  }
-  
-  private func closePDFHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    do {
-      _ = try closePdfDocument(call)
-    } catch {
-      result(self.handlePdfError(error))
-    }
-    
-    result(nil)
   }
   
   private func renderPDFPageHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -307,8 +311,8 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
       return FlutterError(code: "BAD_ARGS", message: "Argument \(argument) not set", details: nil)
     case PdfImageRendererError.openError(let path):
       return FlutterError(code: "ERR_OPEN", message: "Error while opening the pdf document for path \(path)", details: nil)
-    case PdfImageRendererError.closeError(let path):
-      return FlutterError(code: "ERR_CLOSE", message: "Error while closing the pdf document for path \(path)", details: nil)
+    case PdfImageRendererError.closeError(let hash):
+      return FlutterError(code: "ERR_CLOSE", message: "Error while closing the pdf document with hash \(hash)", details: nil)
     case PdfImageRendererError.notOpen(let hash):
       return FlutterError(code: "ERR_NOT_OPEN", message: "The requested pdf document with hash \(hash) is not opened!", details: nil)
     case PdfImageRendererError.openPageError(let page):
@@ -323,7 +327,7 @@ enum PdfImageRendererError: Error {
   case badArguments
   case badArgument(_ argument: String)
   case openError(_ path: String)
-  case closeError(_ path: String)
+  case closeError(_ hashValue: Int)
   case notOpen(_ hashValue: Int)
   case openPageError(_ page: Int)
 }
