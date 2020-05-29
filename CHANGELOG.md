@@ -13,3 +13,7 @@
 #### 0.1.1+2
 
 - Finally found out what the problem for the android problem was -> see commits
+
+### 0.1.2
+
+- Fixed pdf rotation ignored on iOS devices.
