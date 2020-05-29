@@ -92,24 +92,37 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     let scaleCGFloat = CGFloat(scale)
     let xCGFloat = CGFloat(-x) * scaleCGFloat
     let yCGFloat = CGFloat(-y) * scaleCGFloat
+    
+    // Get rotation angle and convert from degrees to radians:
+    let angle = CGFloat(page.rotationAngle) * CGFloat.pi / 180
+    let rotatedPageRect = pageRect.applying(CGAffineTransform(rotationAngle: angle))
+
+    let transform = page.getDrawingTransform(.mediaBox, rect: CGRect(x: 0, y: 0, width: Double(rotatedPageRect.width) * scale, height: Double(rotatedPageRect.height) * scale), rotate: 0, preserveAspectRatio: true)
 
     if #available(iOS 10.0, *) {
       let renderer = UIGraphicsImageRenderer(size: size)
 
       image = renderer.image {ctx in
         UIColor.white.set()
-        ctx.fill(CGRect(x: 0, y: 0, width: Double(width) * scale, height: Double(height) * scale))
-
-        ctx.cgContext.translateBy(x: xCGFloat, y: pageRect.size.height * scaleCGFloat + yCGFloat)
+        ctx.fill(CGRect(origin: CGPoint(), size: size))
+        
+        ctx.cgContext.saveGState()
+        
+        ctx.cgContext.translateBy(x: xCGFloat, y: rotatedPageRect.size.height * scaleCGFloat + yCGFloat)
         ctx.cgContext.scaleBy(x: scaleCGFloat, y: -scaleCGFloat)
+
+        ctx.cgContext.concatenate(transform)
+        
         ctx.cgContext.drawPDFPage(page)
+
+        ctx.cgContext.restoreGState()
       }
     } else {
       // Fallback on earlier versions
       UIGraphicsBeginImageContext(size)
       let ctx = UIGraphicsGetCurrentContext()!
       UIColor.white.set()
-      ctx.fill(CGRect(x: 0, y: 0, width: Double(width) * scale, height: Double(height) * scale))
+      ctx.fill(CGRect(origin: CGPoint(), size: size))
 
       ctx.translateBy(x: xCGFloat, y: pageRect.size.height * scaleCGFloat + yCGFloat)
       ctx.scaleBy(x: scaleCGFloat, y: -scaleCGFloat)
@@ -293,11 +306,13 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
       }
 
       let pageRect = page.getBoxRect(CGPDFBox.mediaBox)
+      let angle = CGFloat(page.rotationAngle) * CGFloat.pi / 180
+      let rotatedPageRect = pageRect.applying(CGAffineTransform(rotationAngle: angle))
 
       DispatchQueue.main.async {
         result([
-          "width": Int(pageRect.width),
-          "height": Int(pageRect.height)
+          "width": Int(rotatedPageRect.width),
+          "height": Int(rotatedPageRect.height)
         ])
       }
     }
