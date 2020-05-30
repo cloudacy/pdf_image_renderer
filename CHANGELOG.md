@@ -17,3 +17,7 @@
 ### 0.1.2
 
 - Fixed pdf rotation ignored on iOS devices.
+
+### 0.1.3
+
+- Fixed pdf not rendering correctly on iOS with `scale` property larger than 1
