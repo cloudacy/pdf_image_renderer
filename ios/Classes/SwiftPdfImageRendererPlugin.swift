@@ -97,7 +97,7 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     let angle = CGFloat(page.rotationAngle) * CGFloat.pi / 180
     let rotatedPageRect = pageRect.applying(CGAffineTransform(rotationAngle: angle))
 
-    let transform = page.getDrawingTransform(.mediaBox, rect: CGRect(x: 0, y: 0, width: Double(rotatedPageRect.width) * scale, height: Double(rotatedPageRect.height) * scale), rotate: 0, preserveAspectRatio: true)
+    let transform = page.getDrawingTransform(.mediaBox, rect: CGRect(x: 0, y: 0, width: Double(rotatedPageRect.width), height: Double(rotatedPageRect.height)), rotate: 0, preserveAspectRatio: true)
 
     if #available(iOS 10.0, *) {
       let renderer = UIGraphicsImageRenderer(size: size)
