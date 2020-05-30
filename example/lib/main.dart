@@ -32,11 +32,11 @@ class _MyAppState extends State<MyApp> {
     size = await pdf.getPageSize(pageIndex: pageIndex);
     final i = await pdf.renderPage(
       pageIndex: pageIndex,
-      x: 0,
-      y: 0,
+      x: cropped ? 100 : 0,
+      y: cropped ? 100 : 0,
       width: cropped ? 100 : size.width,
       height: cropped ? 100 : size.height,
-      scale: 1,
+      scale: 3,
       background: '#ffffffff',
     );
 
