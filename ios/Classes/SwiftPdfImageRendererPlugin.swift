@@ -85,7 +85,9 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
   }
   
   private func renderPdfPage(page: CGPDFPage, width: Int, height: Int, scale: Double, x: Int, y: Int) -> Data? {
-    let image: UIImage
+//    let initRenderTime = DispatchTime.now()
+//    print("init render")
+    let image: Data
     
     let pageRect = page.getBoxRect(CGPDFBox.mediaBox)
     let size = CGSize(width: Double(width) * scale, height: Double(height) * scale)
@@ -98,42 +100,29 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     let rotatedPageRect = pageRect.applying(CGAffineTransform(rotationAngle: angle))
 
     let transform = page.getDrawingTransform(.mediaBox, rect: CGRect(x: 0, y: 0, width: Double(rotatedPageRect.width), height: Double(rotatedPageRect.height)), rotate: 0, preserveAspectRatio: true)
-
-    if #available(iOS 10.0, *) {
-      let renderer = UIGraphicsImageRenderer(size: size)
-
-      image = renderer.image {ctx in
-        UIColor.white.set()
-        ctx.fill(CGRect(origin: CGPoint(), size: size))
-        
-        ctx.cgContext.saveGState()
-        
-        ctx.cgContext.translateBy(x: xCGFloat, y: rotatedPageRect.size.height * scaleCGFloat + yCGFloat)
-        ctx.cgContext.scaleBy(x: scaleCGFloat, y: -scaleCGFloat)
-
-        ctx.cgContext.concatenate(transform)
-        
-        ctx.cgContext.drawPDFPage(page)
-
-        ctx.cgContext.restoreGState()
-      }
-    } else {
-      // Fallback on earlier versions
-      UIGraphicsBeginImageContext(size)
-      let ctx = UIGraphicsGetCurrentContext()!
-      UIColor.white.set()
-      ctx.fill(CGRect(origin: CGPoint(), size: size))
-
-      ctx.translateBy(x: xCGFloat, y: pageRect.size.height * scaleCGFloat + yCGFloat)
-      ctx.scaleBy(x: scaleCGFloat, y: -scaleCGFloat)
-
-      ctx.drawPDFPage(page)
-
-      image = UIGraphicsGetImageFromCurrentImageContext()!
-      UIGraphicsEndImageContext()
-    }
     
-    return image.pngData()
+//    let startRenderTime = DispatchTime.now()
+//    print("start render +\(Double(startRenderTime.uptimeNanoseconds - initRenderTime.uptimeNanoseconds) / 1000000000)s")
+
+    UIGraphicsBeginImageContext(size)
+    let ctx = UIGraphicsGetCurrentContext()!
+    UIColor.white.set()
+    ctx.fill(CGRect(origin: CGPoint(), size: size))
+
+    ctx.translateBy(x: xCGFloat, y: rotatedPageRect.size.height * scaleCGFloat + yCGFloat)
+    ctx.scaleBy(x: scaleCGFloat, y: -scaleCGFloat)
+  
+    ctx.concatenate(transform)
+
+    ctx.drawPDFPage(page)
+
+    image = UIGraphicsGetImageFromCurrentImageContext()!.pngData()!
+    UIGraphicsEndImageContext()
+    
+//    let endRenderTime = DispatchTime.now()
+//    print("finished rendering +\(Double(endRenderTime.uptimeNanoseconds - startRenderTime.uptimeNanoseconds) / 1000000000)s")
+    
+    return image
   }
   
   private func openPDFHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
