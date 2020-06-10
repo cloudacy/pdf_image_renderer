@@ -21,3 +21,7 @@
 ### 0.1.3
 
 - Fixed pdf not rendering correctly on iOS with `scale` property larger than 1
+
+### 0.1.4
+
+- Improve iOS pdf rendering performance.
