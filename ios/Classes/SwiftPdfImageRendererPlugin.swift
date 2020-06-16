@@ -2,6 +2,8 @@ import Flutter
 import UIKit
 
 public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
+  let dispatchQueue = DispatchQueue(label: "io.cloudacy.pdf_image_renderer")
+
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "pdf_image_renderer", binaryMessenger: registrar.messenger())
     let instance = SwiftPdfImageRendererPlugin()
@@ -217,7 +219,7 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
   }
   
   private func renderPDFPageHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    DispatchQueue.global(qos: .background).async {
+    dispatchQueue.async {
       let arguments: Dictionary<String, Any>
       let page: CGPDFPage
 
