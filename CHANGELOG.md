@@ -25,3 +25,7 @@
 ### 0.1.4
 
 - Improve iOS pdf rendering performance.
+
+### 0.1.5
+
+- Improve iOS pdf rendering performance.
