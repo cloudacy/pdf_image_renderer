@@ -37,7 +37,7 @@ class _MyAppState extends State<MyApp> {
       width: cropped ? 100 : size.width,
       height: cropped ? 100 : size.height,
       scale: 3,
-      background: '#ffffffff',
+      background: Color(0xFFFFFFFF),
     );
 
     setState(() {

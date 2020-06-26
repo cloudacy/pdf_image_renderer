@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 void printTime(String message) {
@@ -76,13 +77,13 @@ class PdfImageRendererPdf {
   }
 
   Future<Uint8List> renderPage({
-    @required int pageIndex,
-    @required int x,
-    @required int y,
-    @required int width,
-    @required int height,
-    @required double scale,
-    @required String background,
+    int pageIndex = 0,
+    int x,
+    int y,
+    int width,
+    int height,
+    double scale,
+    Color background,
   }) async {
     if (!pages.contains(pageIndex)) await openPage(pageIndex: pageIndex);
 
@@ -180,13 +181,22 @@ class PdfImageRenderer {
   static Future<Uint8List> renderPDFPage({
     @required int pdf,
     @required int page,
-    @required int x,
-    @required int y,
-    @required int width,
-    @required int height,
-    @required double scale,
-    @required String background,
+    int x,
+    int y,
+    int width,
+    int height,
+    double scale,
+    Color background = const Color(0xFFFFFFFF),
   }) async {
+    PdfImageRendererPageSize size;
+
+    if (width == null || height == null) {
+      size = await getPDFPageSize(pdf: pdf, page: page);
+
+      if (width == null) width = size.width;
+      if (height == null) height = size.height;
+    }
+
     final Uint8List image = await _channel.invokeMethod('renderPDFPage', {
       'pdf': pdf,
       'page': page,
@@ -195,7 +205,7 @@ class PdfImageRenderer {
       'width': width,
       'height': height,
       'scale': scale,
-      'background': background,
+      'background': background.toString(),
     });
     return image;
   }
