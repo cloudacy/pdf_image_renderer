@@ -41,7 +41,7 @@ class _MyAppState extends State<MyApp> {
           width: size.width, // you can pass a custom size here to crop the image
           height: size.height, // you can pass a custom size here to crop the image
           scale: 1, // increase the scale for better quality (e.g. for zooming)
-          background: '#ffffffff',
+          background: Colors.white,
         );
 
     // use setState to update the renderer

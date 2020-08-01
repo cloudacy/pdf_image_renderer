@@ -1,3 +1,7 @@
+### 0.2.1
+
+- Fix background color not working on android.
+
 ## 0.2.0
 
 - **BREAKING** background color now requires a `Color` object
