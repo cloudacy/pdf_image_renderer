@@ -205,7 +205,7 @@ class PdfImageRenderer {
       'width': width,
       'height': height,
       'scale': scale,
-      'background': background.toString(),
+      'background': '#${background.value.toRadixString(16)}',
     });
     return image;
   }

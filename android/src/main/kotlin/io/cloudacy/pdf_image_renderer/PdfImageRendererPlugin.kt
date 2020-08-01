@@ -9,6 +9,7 @@ import android.graphics.pdf.PdfRenderer.Page
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
@@ -309,7 +310,7 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
       else
         Color.TRANSPARENT
     } catch (e: Exception) {
-      print("failed to parse $background. $e")
+      Log.e("Parse", "Failed to parse $background. $e")
       Color.TRANSPARENT
     }
     bitmap.eraseColor(parsedBackground)
