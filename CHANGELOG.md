@@ -1,3 +1,7 @@
+### 0.3.1
+
+- Reduce qoS for iOS rendering to prevent ui lags
+
 ## 0.3.0
 
 - Allow multi-threading on iOS which improves iOS rendering performance by a factor of 4 or more
