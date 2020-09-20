@@ -20,6 +20,7 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 import java.io.ByteArrayOutputStream
 import java.io.File
 import kotlin.math.floor
+import kotlinx.coroutines.*
 
 /** PdfImageRendererPlugin */
 class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
@@ -321,12 +322,14 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
     if (scale != 1.0f)
       matrix.postScale(scale, scale)
 
-    page.render(
-      bitmap,
-      Rect(0, 0, floor(width * scale).toInt(), floor(height * scale).toInt()),
-      matrix,
-      Page.RENDER_MODE_FOR_DISPLAY
-    )
+    GlobalScope.async {
+      page.render(
+              bitmap,
+              Rect(0, 0, floor(width * scale).toInt(), floor(height * scale).toInt()),
+              matrix,
+              Page.RENDER_MODE_FOR_DISPLAY
+      )
+    }.start()
     return bitmap
   }
 }
