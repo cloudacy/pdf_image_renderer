@@ -2,7 +2,7 @@ import Flutter
 import UIKit
 
 public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
-  let dispatchQueue = DispatchQueue(label: "io.cloudacy.pdf_image_renderer", qos: .userInteractive, attributes: .concurrent)
+  let dispatchQueue = DispatchQueue(label: "io.cloudacy.pdf_image_renderer", qos: .userInitiated, attributes: .concurrent)
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "pdf_image_renderer", binaryMessenger: registrar.messenger())
