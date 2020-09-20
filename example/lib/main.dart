@@ -23,6 +23,8 @@ class _MyAppState extends State<MyApp> {
 
   bool cropped = false;
 
+  int parallelTasks = 0;
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +45,31 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       image = i;
     });
+  }
+
+  renderPageMultipleTimes() async {
+    final count = 50;
+    size = await pdf.getPageSize(pageIndex: pageIndex);
+
+    parallelTasks = count;
+
+    for (var i = 0; i < count; i++) {
+      final future = pdf.renderPage(
+        pageIndex: pageIndex,
+        x: (size.width / count * i).round(),
+        y: (size.height / count * i).round(),
+        width: (size.width / count).round(),
+        height: (size.height / count).round(),
+        scale: 3,
+        background: Colors.white,
+      );
+
+      future.then((value) {
+        setState(() {
+          parallelTasks--;
+        });
+      });
+    }
   }
 
   openPdf({@required String path}) async {
@@ -117,7 +144,7 @@ class _MyAppState extends State<MyApp> {
                   Text('Rendered image area:'),
                   Image(image: MemoryImage(image)),
                 ],
-                if (open == true)
+                if (open == true) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
@@ -145,6 +172,14 @@ class _MyAppState extends State<MyApp> {
                       ),
                     ],
                   ),
+                  FlatButton(
+                    onPressed: () {
+                      renderPageMultipleTimes();
+                    },
+                    child: Text('Parallel rendering test'),
+                  ),
+                  if (parallelTasks > 0) Text('Offene Tasks $parallelTasks'),
+                ]
               ],
             ),
           ),
