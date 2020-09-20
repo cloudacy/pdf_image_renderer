@@ -1,3 +1,8 @@
+## 0.3.0
+
+- Allow multi-threading on iOS which improves iOS rendering performance by a factor of 4 or more
+- Add parallel execution test in example app
+
 ### 0.2.1
 
 - Fix background color not working on android.
