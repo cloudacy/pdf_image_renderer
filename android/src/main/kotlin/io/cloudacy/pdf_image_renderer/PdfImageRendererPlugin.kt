@@ -88,14 +88,23 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
       return
     }
 
-    try {
-      val pfd = ParcelFileDescriptor.open(File(path), ParcelFileDescriptor.MODE_READ_ONLY)
-      openPFDs[pfd.fd] = pfd
-      openPDFs[pfd.fd] = PdfRenderer(pfd)
-      result.success(pfd.fd)
-    } catch (e: Exception) {
-      result.error("EXECUTION_ERROR", e.message, null)
-    }
+    Thread {
+      val handler = Handler(Looper.getMainLooper())
+
+      try {
+        val pfd = ParcelFileDescriptor.open(File(path), ParcelFileDescriptor.MODE_READ_ONLY)
+        openPFDs[pfd.fd] = pfd
+        openPDFs[pfd.fd] = PdfRenderer(pfd)
+
+        handler.post {
+          result.success(pfd.fd)
+        }
+      } catch (e: Exception) {
+        handler.post {
+          result.error("EXECUTION_ERROR", e.message, null)
+        }
+      }
+    }.start()
   }
 
   private fun closePDF(@NonNull call: MethodCall, @NonNull result: Result) {
@@ -148,17 +157,25 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
       return
     }
 
-    try {
-      if (openPDFPages[id] == null) {
-        openPDFPages[id] = mutableMapOf()
+    Thread {
+      val handler = Handler(Looper.getMainLooper())
+
+      try {
+        if (openPDFPages[id] == null) {
+          openPDFPages[id] = mutableMapOf()
+        }
+
+        openPDFPages[id]!![page] = openPDFs[id]!!.openPage(page)
+
+        handler.post {
+          result.success(page)
+        }
+      } catch (e: Exception) {
+        handler.post {
+          result.error("EXECUTION_ERROR", e.message, null)
+        }
       }
-
-      openPDFPages[id]!![page] = openPDFs[id]!!.openPage(page)
-
-      result.success(page)
-    } catch (e: Exception) {
-      result.error("EXECUTION_ERROR", e.message, null)
-    }
+    }.start()
   }
 
   private fun closePDFPage(@NonNull call: MethodCall, @NonNull result: Result) {
@@ -248,43 +265,41 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   private fun renderPDFPageMethod(@NonNull call: MethodCall, @NonNull result: Result) {
+    val id = call.argument<Int>("pdf")
+    if (id == null) {
+      result.error("INVALID_ARGUMENTS", "Invalid or missing \"id\" argument.", null)
+      return
+    }
+
+    val page = call.argument<Int>("page")
+    if (page == null) {
+      result.error("INVALID_ARGUMENTS", "Invalid or missing \"page\" argument.", null)
+      return
+    }
+
+    if (openPDFs[id] == null) {
+      result.error("INVALID_ARGUMENTS", "No PDF found for id $id.", null)
+      return
+    }
+
+    if (openPDFPages[id] != null && openPDFPages[id]!![page] == null) {
+      result.error("INVALID_ARGUMENTS", "Page $page for PDF $id is not open.", null)
+      return
+    }
+
+    val x = call.argument<Int>("x")
+    val y = call.argument<Int>("y")
+    val width = call.argument<Int>("width")
+    val height = call.argument<Int>("height")
+    val scale = call.argument<Double>("scale")
+    val background = call.argument<String>("background")
+    if (x == null || y == null || width == null || height == null || scale == null) {
+      result.error("INVALID_ARGUMENTS", "Invalid or missing arguments.", null)
+      return
+    }
+
     Thread {
       val handler = Handler(Looper.getMainLooper())
-
-      val id = call.argument<Int>("pdf")
-      if (id == null) {
-        result.error("INVALID_ARGUMENTS", "Invalid or missing \"id\" argument.", null)
-        return@Thread
-      }
-
-      val page = call.argument<Int>("page")
-      if (page == null) {
-        result.error("INVALID_ARGUMENTS", "Invalid or missing \"page\" argument.", null)
-        return@Thread
-      }
-
-      if (openPDFs[id] == null) {
-        result.error("INVALID_ARGUMENTS", "No PDF found for id $id.", null)
-        return@Thread
-      }
-
-      if (openPDFPages[id] != null && openPDFPages[id]!![page] == null) {
-        result.error("INVALID_ARGUMENTS", "Page $page for PDF $id is not open.", null)
-        return@Thread
-      }
-
-      val x = call.argument<Int>("x")
-      val y = call.argument<Int>("y")
-      val width = call.argument<Int>("width")
-      val height = call.argument<Int>("height")
-      val scale = call.argument<Double>("scale")
-      val background = call.argument<String>("background")
-      if (x == null || y == null || width == null || height == null || scale == null) {
-        handler.post {
-          result.error("INVALID_ARGUMENTS", "Invalid or missing arguments.", null)
-        }
-        return@Thread
-      }
 
       try {
         val bitmap = renderPDFPage(openPDFPages[id]!![page]!!, x, y, width, height, scale.toFloat(), background)
@@ -304,6 +319,7 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
 
   private fun renderPDFPage(page: Page, x: Int, y: Int, width: Int, height: Int, scale: Float, background: String?): Bitmap {
     val bitmap = Bitmap.createBitmap(floor(width * scale).toInt(), floor(height * scale).toInt(), Bitmap.Config.ARGB_8888)
+
     val parsedBackground = try {
       if (background != null)
         Color.parseColor(background)
@@ -327,6 +343,7 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
       matrix,
       Page.RENDER_MODE_FOR_DISPLAY
     )
+
     return bitmap
   }
 }
