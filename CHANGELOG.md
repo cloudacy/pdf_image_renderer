@@ -1,3 +1,7 @@
+### 0.3.2
+
+- Reduce android UI lags
+
 ### 0.3.1
 
 - Reduce qoS for iOS rendering to prevent ui lags
