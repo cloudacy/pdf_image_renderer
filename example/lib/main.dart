@@ -117,7 +117,7 @@ class _MyAppState extends State<MyApp> {
           child: SingleChildScrollView(
             child: Column(
               children: <Widget>[
-                RaisedButton(
+                ElevatedButton(
                   child: Text('Select PDF'),
                   onPressed: () async {
                     final result =
@@ -135,7 +135,7 @@ class _MyAppState extends State<MyApp> {
                 if (count != null) Text('The selected PDF has $count pages.'),
                 if (image != null) Text('It is ${size!.width} wide and ${size!.height} high.'),
                 if (open == true)
-                  RaisedButton(
+                  ElevatedButton(
                     child: Text('Close PDF'),
                     onPressed: () async {
                       await closePdf();
@@ -149,7 +149,7 @@ class _MyAppState extends State<MyApp> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
-                      FlatButton.icon(
+                      TextButton.icon(
                         onPressed: pageIndex > 0
                             ? () async {
                                 pageIndex -= 1;
@@ -160,7 +160,7 @@ class _MyAppState extends State<MyApp> {
                         icon: Icon(Icons.chevron_left),
                         label: Text('Previous'),
                       ),
-                      FlatButton.icon(
+                      TextButton.icon(
                         onPressed: pageIndex < (count! - 1)
                             ? () async {
                                 pageIndex += 1;
@@ -173,7 +173,7 @@ class _MyAppState extends State<MyApp> {
                       ),
                     ],
                   ),
-                  FlatButton(
+                  TextButton(
                     onPressed: () {
                       renderPageMultipleTimes();
                     },
