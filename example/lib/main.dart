@@ -13,13 +13,13 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   int pageIndex = 0;
-  Uint8List image;
+  Uint8List? image;
 
-  bool open;
+  bool open = false;
 
-  PdfImageRendererPdf pdf;
-  int count;
-  PdfImageRendererPageSize size;
+  PdfImageRendererPdf? pdf;
+  int? count;
+  PdfImageRendererPageSize? size;
 
   bool cropped = false;
 
@@ -31,13 +31,13 @@ class _MyAppState extends State<MyApp> {
   }
 
   renderPage() async {
-    size = await pdf.getPageSize(pageIndex: pageIndex);
-    final i = await pdf.renderPage(
+    size = await pdf!.getPageSize(pageIndex: pageIndex);
+    final i = await pdf!.renderPage(
       pageIndex: pageIndex,
       x: cropped ? 100 : 0,
       y: cropped ? 100 : 0,
-      width: cropped ? 100 : size.width,
-      height: cropped ? 100 : size.height,
+      width: cropped ? 100 : size!.width,
+      height: cropped ? 100 : size!.height,
       scale: 3,
       background: Colors.white,
     );
@@ -49,17 +49,17 @@ class _MyAppState extends State<MyApp> {
 
   renderPageMultipleTimes() async {
     final count = 50;
-    size = await pdf.getPageSize(pageIndex: pageIndex);
+    size = await pdf!.getPageSize(pageIndex: pageIndex);
 
     parallelTasks = count;
 
     for (var i = 0; i < count; i++) {
-      final future = pdf.renderPage(
+      final future = pdf!.renderPage(
         pageIndex: pageIndex,
-        x: (size.width / count * i).round(),
-        y: (size.height / count * i).round(),
-        width: (size.width / count).round(),
-        height: (size.height / count).round(),
+        x: (size!.width / count * i).round(),
+        y: (size!.height / count * i).round(),
+        width: (size!.width / count).round(),
+        height: (size!.height / count).round(),
         scale: 3,
         background: Colors.white,
       );
@@ -72,12 +72,12 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  openPdf({@required String path}) async {
+  openPdf({required String path}) async {
     if (pdf != null) {
-      await pdf.close();
+      await pdf!.close();
     }
     pdf = PdfImageRendererPdf(path: path);
-    await pdf.open();
+    await pdf!.open();
     setState(() {
       open = true;
     });
@@ -85,15 +85,15 @@ class _MyAppState extends State<MyApp> {
 
   closePdf() async {
     if (pdf != null) {
-      await pdf.close();
+      await pdf!.close();
       setState(() {
         open = false;
       });
     }
   }
 
-  openPdfPage({@required int pageIndex}) async {
-    await pdf.openPage(pageIndex: pageIndex);
+  openPdfPage({required int pageIndex}) async {
+    await pdf!.openPage(pageIndex: pageIndex);
   }
 
   @override
@@ -120,19 +120,20 @@ class _MyAppState extends State<MyApp> {
                 RaisedButton(
                   child: Text('Select PDF'),
                   onPressed: () async {
-                    String path = await FilePicker.getFilePath(type: FileType.custom, allowedExtensions: ['pdf']);
+                    final result =
+                        await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
 
-                    if (path != null) {
-                      await openPdf(path: path);
+                    if (result != null) {
+                      await openPdf(path: result.paths[0]!);
                       pageIndex = 0;
-                      count = await pdf.getPageCount();
+                      count = await pdf!.getPageCount();
                       await openPdfPage(pageIndex: pageIndex);
                       renderPage();
                     }
                   },
                 ),
                 if (count != null) Text('The selected PDF has $count pages.'),
-                if (image != null) Text('It is ${size.width} wide and ${size.height} high.'),
+                if (image != null) Text('It is ${size!.width} wide and ${size!.height} high.'),
                 if (open == true)
                   RaisedButton(
                     child: Text('Close PDF'),
@@ -142,7 +143,7 @@ class _MyAppState extends State<MyApp> {
                   ),
                 if (image != null) ...[
                   Text('Rendered image area:'),
-                  Image(image: MemoryImage(image)),
+                  Image(image: MemoryImage(image!)),
                 ],
                 if (open == true) ...[
                   Row(
@@ -160,7 +161,7 @@ class _MyAppState extends State<MyApp> {
                         label: Text('Previous'),
                       ),
                       FlatButton.icon(
-                        onPressed: pageIndex < (count - 1)
+                        onPressed: pageIndex < (count! - 1)
                             ? () async {
                                 pageIndex += 1;
                                 await openPdfPage(pageIndex: pageIndex);

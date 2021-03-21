@@ -12,16 +12,16 @@ void printTime(String message) {
 
 class PdfImageRendererPdf {
   String path;
-  int id;
-  Set<int> pages;
+  int? id;
+  Set<int>? pages;
 
-  int pageCount;
-  Map<int, PdfImageRendererPageSize> pageSizes;
+  int? pageCount;
+  Map<int, PdfImageRendererPageSize>? pageSizes;
 
-  PdfImageRendererPdf({@required this.path});
+  PdfImageRendererPdf({required this.path});
 
   Future<int> open() async {
-    if (id != null) return id;
+    if (id != null) return id!;
 
     printTime("Open PDF $path");
 
@@ -30,13 +30,13 @@ class PdfImageRendererPdf {
 
     printTime("PDF opened.");
 
-    return id;
+    return id!;
   }
 
   Future<bool> close() async {
     if (id == null) return false;
 
-    await PdfImageRenderer.closePdf(pdf: id);
+    await PdfImageRenderer.closePdf(pdf: id!);
 
     id = null;
     pages = Set();
@@ -46,49 +46,54 @@ class PdfImageRendererPdf {
     return true;
   }
 
-  Future<int> openPage({@required int pageIndex}) async {
-    if (pages.contains(pageIndex)) return pageIndex;
+  Future<int> openPage({required int pageIndex}) async {
+    if (id == null || pages == null) throw StateError('PDF is not opened yet!');
 
-    await PdfImageRenderer.openPdfPage(pdf: id, page: pageIndex);
+    if (pages!.contains(pageIndex)) return pageIndex;
 
-    pages.add(pageIndex);
+    await PdfImageRenderer.openPdfPage(pdf: id!, page: pageIndex);
+
+    pages!.add(pageIndex);
 
     return pageIndex;
   }
 
   Future<int> getPageCount() async {
-    if (pageCount != null) return pageCount;
+    if (id == null) throw StateError('PDF is not opened yet!');
+    if (pageCount != null) return pageCount!;
 
-    pageCount = await PdfImageRenderer.getPDFPageCount(pdf: id);
+    pageCount = await PdfImageRenderer.getPDFPageCount(pdf: id!);
 
-    return pageCount;
+    return pageCount!;
   }
 
-  Future<PdfImageRendererPageSize> getPageSize({@required int pageIndex}) async {
+  Future<PdfImageRendererPageSize> getPageSize({required int pageIndex}) async {
+    if (id == null || pages == null) throw StateError('PDF is not opened yet!');
     if (pageSizes == null) pageSizes = {};
 
-    if (pageSizes.containsKey(pageIndex)) return pageSizes[pageIndex];
+    if (pageSizes!.containsKey(pageIndex)) return pageSizes![pageIndex]!;
 
-    if (!pages.contains(pageIndex)) await openPage(pageIndex: pageIndex);
+    if (!pages!.contains(pageIndex)) await openPage(pageIndex: pageIndex);
 
-    pageSizes[pageIndex] = await PdfImageRenderer.getPDFPageSize(pdf: id, page: pageIndex);
+    pageSizes![pageIndex] = await PdfImageRenderer.getPDFPageSize(pdf: id!, page: pageIndex);
 
-    return pageSizes[pageIndex];
+    return pageSizes![pageIndex]!;
   }
 
   Future<Uint8List> renderPage({
     int pageIndex = 0,
-    int x,
-    int y,
-    int width,
-    int height,
-    double scale,
-    Color background,
+    int? x,
+    int? y,
+    int? width,
+    int? height,
+    double? scale,
+    Color background = const Color(0xFFFFFFFF),
   }) async {
-    if (!pages.contains(pageIndex)) await openPage(pageIndex: pageIndex);
+    if (id == null || pages == null) throw StateError('PDF is not opened yet!');
+    if (!pages!.contains(pageIndex)) await openPage(pageIndex: pageIndex);
 
     Uint8List bytes = await PdfImageRenderer.renderPDFPage(
-      pdf: id,
+      pdf: id!,
       page: pageIndex,
       x: x,
       y: y,
@@ -106,14 +111,14 @@ class PdfImageRendererPageSize {
   final int width;
   final int height;
 
-  const PdfImageRendererPageSize({@required this.width, @required this.height});
+  const PdfImageRendererPageSize({required this.width, required this.height});
 }
 
 class PdfImageRenderer {
   static const MethodChannel _channel = const MethodChannel('pdf_image_renderer');
 
   static Future<int> openPdf({
-    @required String path,
+    required String path,
   }) async {
     final int pdf = await _channel.invokeMethod('openPDF', {
       'path': path,
@@ -122,7 +127,7 @@ class PdfImageRenderer {
   }
 
   static Future<int> closePdf({
-    @required int pdf,
+    required int pdf,
   }) async {
     final int id = await _channel.invokeMethod('closePDF', {
       'pdf': pdf,
@@ -131,8 +136,8 @@ class PdfImageRenderer {
   }
 
   static Future<int> openPdfPage({
-    @required int pdf,
-    @required int page,
+    required int pdf,
+    required int page,
   }) async {
     final int index = await _channel.invokeMethod('openPDFPage', {
       'pdf': pdf,
@@ -142,8 +147,8 @@ class PdfImageRenderer {
   }
 
   static Future<int> closePdfPage({
-    @required int pdf,
-    @required int page,
+    required int pdf,
+    required int page,
   }) async {
     final int index = await _channel.invokeMethod('closePDFPage', {
       'pdf': pdf,
@@ -154,7 +159,7 @@ class PdfImageRenderer {
 
   /// Returns the number of pages for the PDF located at given path.
   static Future<int> getPDFPageCount({
-    @required int pdf,
+    required int pdf,
   }) async {
     final int count = await _channel.invokeMethod('getPDFPageCount', {
       'pdf': pdf,
@@ -165,27 +170,28 @@ class PdfImageRenderer {
   /// Returns an instance of PdfImageRendererPageSize, holding the width and height in points
   /// of the page at given index of the PDF located at given path.
   static Future<PdfImageRendererPageSize> getPDFPageSize({
-    @required int pdf,
-    @required int page,
+    required int pdf,
+    required int page,
   }) async {
-    final Map<String, int> size = await _channel.invokeMapMethod('getPDFPageSize', {
+    final size = (await _channel.invokeMapMethod<String, int>('getPDFPageSize', {
       'pdf': pdf,
       'page': page,
-    });
+    }))!;
+
     return PdfImageRendererPageSize(
-      width: size['width'],
-      height: size['height'],
+      width: size['width']!,
+      height: size['height']!,
     );
   }
 
   static Future<Uint8List> renderPDFPage({
-    @required int pdf,
-    @required int page,
-    int x,
-    int y,
-    int width,
-    int height,
-    double scale,
+    required int pdf,
+    required int page,
+    int? x,
+    int? y,
+    int? width,
+    int? height,
+    double? scale,
     Color background = const Color(0xFFFFFFFF),
   }) async {
     PdfImageRendererPageSize size;
