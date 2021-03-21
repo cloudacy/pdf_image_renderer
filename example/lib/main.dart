@@ -179,7 +179,7 @@ class _MyAppState extends State<MyApp> {
                     },
                     child: Text('Parallel rendering test'),
                   ),
-                  if (parallelTasks > 0) Text('Offene Tasks $parallelTasks'),
+                  if (parallelTasks > 0) Text('Open Tasks $parallelTasks'),
                 ]
               ],
             ),
