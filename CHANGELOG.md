@@ -1,3 +1,7 @@
+## 0.4.0
+
+- Migrate to null sound safety.
+
 ### 0.3.2
 
 - Reduce android UI lags
