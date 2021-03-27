@@ -91,7 +91,7 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
 //    print("init render")
     let image: Data
     
-    let pageRect = page.getBoxRect(CGPDFBox.mediaBox)
+    let pageRect = page.getBoxRect(.cropBox)
     let size = CGSize(width: Double(width) * scale, height: Double(height) * scale)
     let scaleCGFloat = CGFloat(scale)
     let xCGFloat = CGFloat(-x) * scaleCGFloat
@@ -101,7 +101,7 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     let angle = CGFloat(page.rotationAngle) * CGFloat.pi / 180
     let rotatedPageRect = pageRect.applying(CGAffineTransform(rotationAngle: angle))
 
-    let transform = page.getDrawingTransform(.mediaBox, rect: CGRect(x: 0, y: 0, width: Double(rotatedPageRect.width), height: Double(rotatedPageRect.height)), rotate: 0, preserveAspectRatio: true)
+    let transform = page.getDrawingTransform(.cropBox, rect: CGRect(x: 0, y: 0, width: Double(rotatedPageRect.width), height: Double(rotatedPageRect.height)), rotate: 0, preserveAspectRatio: true)
     
 //    let startRenderTime = DispatchTime.now()
 //    print("start render +\(Double(startRenderTime.uptimeNanoseconds - initRenderTime.uptimeNanoseconds) / 1000000000)s")
@@ -296,7 +296,7 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
         return
       }
 
-      let pageRect = page.getBoxRect(CGPDFBox.mediaBox)
+      let pageRect = page.getBoxRect(.cropBox)
       let angle = CGFloat(page.rotationAngle) * CGFloat.pi / 180
       let rotatedPageRect = pageRect.applying(CGAffineTransform(rotationAngle: angle))
 
