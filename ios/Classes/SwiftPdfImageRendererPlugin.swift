@@ -152,11 +152,11 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
       }
 
       try closePdfDocument(hash)
+      
+      result(hash)
     } catch {
       result(self.handlePdfError(error))
     }
-
-    result(nil)
   }
   
   private func openPDFPageHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
