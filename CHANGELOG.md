@@ -1,3 +1,9 @@
+## 0.5.0
+
+- Enabled dart strong mode
+
+**BREAKING CHANGE** This could lead to some type errors as some functions return nullable types now.
+
 ## 0.4.0
 
 - Migrate to null sound safety.
