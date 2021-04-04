@@ -30,7 +30,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
   }
 
-  renderPage() async {
+  Future<void> renderPage() async {
     size = await pdf!.getPageSize(pageIndex: pageIndex);
     final i = await pdf!.renderPage(
       pageIndex: pageIndex,
@@ -47,7 +47,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  renderPageMultipleTimes() async {
+  Future<void> renderPageMultipleTimes() async {
     final count = 50;
     size = await pdf!.getPageSize(pageIndex: pageIndex);
 
@@ -72,7 +72,7 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  openPdf({required String path}) async {
+  Future<void> openPdf({required String path}) async {
     if (pdf != null) {
       await pdf!.close();
     }
@@ -83,7 +83,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  closePdf() async {
+  Future<void> closePdf() async {
     if (pdf != null) {
       await pdf!.close();
       setState(() {
@@ -92,7 +92,7 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  openPdfPage({required int pageIndex}) async {
+  Future<void> openPdfPage({required int pageIndex}) async {
     await pdf!.openPage(pageIndex: pageIndex);
   }
 
@@ -120,8 +120,8 @@ class _MyAppState extends State<MyApp> {
                 ElevatedButton(
                   child: Text('Select PDF'),
                   onPressed: () async {
-                    final result =
-                        await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+                    final result = await FilePicker.platform.pickFiles(
+                        type: FileType.custom, allowedExtensions: ['pdf']);
 
                     if (result != null) {
                       await openPdf(path: result.paths[0]!);
@@ -133,7 +133,8 @@ class _MyAppState extends State<MyApp> {
                   },
                 ),
                 if (count != null) Text('The selected PDF has $count pages.'),
-                if (image != null) Text('It is ${size!.width} wide and ${size!.height} high.'),
+                if (image != null)
+                  Text('It is ${size!.width} wide and ${size!.height} high.'),
                 if (open == true)
                   ElevatedButton(
                     child: Text('Close PDF'),
