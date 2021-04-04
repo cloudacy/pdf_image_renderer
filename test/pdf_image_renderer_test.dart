@@ -3,12 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 // import 'package:pdf_image_renderer/pdf_image_renderer.dart';
 
 void main() {
-  const MethodChannel channel = MethodChannel('pdf_image_renderer');
+  const channel = MethodChannel('pdf_image_renderer');
 
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
-    channel.setMockMethodCallHandler((MethodCall methodCall) async {
+    channel.setMockMethodCallHandler((methodCall) async {
       return '42';
     });
   });
