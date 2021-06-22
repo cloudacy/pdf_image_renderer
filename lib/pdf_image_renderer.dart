@@ -43,7 +43,8 @@ class PdfImageRendererPdf {
     if (_id == null) throw StateError('PDF is not open!');
 
     // Close all open PDF pages.
-    for (final page in _pages) {
+    final pages = [..._pages];
+    for (final page in pages) {
       await closePage(pageIndex: page);
     }
 
