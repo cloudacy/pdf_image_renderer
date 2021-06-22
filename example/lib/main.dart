@@ -23,7 +23,7 @@ class _MyAppState extends State<MyApp> {
 
   bool cropped = false;
 
-  int parallelTasks = 0;
+  int asyncTasks = 0;
 
   @override
   void initState() {
@@ -49,10 +49,14 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> renderPageMultipleTimes() async {
     final count = 50;
+
+    await pdf!.openPage(pageIndex: pageIndex);
+
     size = await pdf!.getPageSize(pageIndex: pageIndex);
 
-    parallelTasks = count;
+    asyncTasks = count;
 
+    final renderFutures = <Future<Uint8List?>>[];
     for (var i = 0; i < count; i++) {
       final future = pdf!.renderPage(
         pageIndex: pageIndex,
@@ -64,12 +68,18 @@ class _MyAppState extends State<MyApp> {
         background: Colors.white,
       );
 
+      renderFutures.add(future);
+
       future.then((value) {
         setState(() {
-          parallelTasks--;
+          asyncTasks--;
         });
       });
     }
+
+    await Future.wait(renderFutures);
+
+    await pdf!.closePage(pageIndex: pageIndex);
   }
 
   Future<void> openPdf({required String path}) async {
@@ -175,13 +185,14 @@ class _MyAppState extends State<MyApp> {
                       ),
                     ],
                   ),
-                  TextButton(
-                    onPressed: () {
-                      renderPageMultipleTimes();
-                    },
-                    child: Text('Parallel rendering test'),
-                  ),
-                  if (parallelTasks > 0) Text('Open Tasks $parallelTasks'),
+                  if (asyncTasks <= 0)
+                    TextButton(
+                      onPressed: () {
+                        renderPageMultipleTimes();
+                      },
+                      child: Text('Async rendering test'),
+                    ),
+                  if (asyncTasks > 0) Text('$asyncTasks remaining tasks'),
                 ]
               ],
             ),
