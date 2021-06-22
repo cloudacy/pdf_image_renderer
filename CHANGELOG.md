@@ -1,3 +1,9 @@
+## 0.6.0
+
+- **BREAKING CHANGE**: Updated gradle plugin version from 3.5.0 to 4.2.1.
+- **BREAKING CHANGE**: Updated compileSDKVersion to 30.
+- **BREAKING CHANGE**: Updated APIs of `open`, `close` and `openPage` to not return internal values.
+
 ## 0.5.0
 
 - Enabled dart strong mode
