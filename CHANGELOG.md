@@ -8,6 +8,10 @@
 
 - Fixed bad PDF page states. See [21a0d45aa9a096760dd03763b4a961d9d9b9450c](https://github.com/cloudacy/pdf_image_renderer/commit/21a0d45aa9a096760dd03763b4a961d9d9b9450c)
 
+### 0.5.2
+
+- Update dependencies
+
 ## 0.4.0
 
 - Migrate to null sound safety.
