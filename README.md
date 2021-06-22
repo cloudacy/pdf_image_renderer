@@ -44,6 +44,12 @@ class _MyAppState extends State<MyApp> {
           background: Colors.white,
         );
 
+    // close the page again
+    await pdf.closePage(pageIndex: 0);
+
+    // close the PDF after rendering the page
+    pdf.close();
+
     // use setState to update the renderer
     setState(() {
       image = img;

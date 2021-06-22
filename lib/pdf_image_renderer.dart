@@ -30,19 +30,22 @@ class PdfImageRendererPdf {
   /// Open the PDF by the path this [PdfImageRendererPdf] was initialized with.
   ///
   /// Must be closed with the [close] method to free up memory.
-  Future<int> open() async {
-    if (_id != null) return _id!;
+  Future<void> open() async {
+    if (_id != null) return;
 
     _id = await PdfImageRenderer.openPdf(path: _path);
-
-    return _id!;
   }
 
   /// Closes the PDF.
   ///
   /// Must be opened with the [open] method before.
-  Future<bool> close() async {
-    if (_id == null) return false;
+  Future<void> close() async {
+    if (_id == null) throw StateError('PDF is not open!');
+
+    // Close all open PDF pages.
+    for (final page in _pages) {
+      await closePage(pageIndex: page);
+    }
 
     await PdfImageRenderer.closePdf(pdf: _id!);
 
@@ -50,17 +53,15 @@ class PdfImageRendererPdf {
     _pages.clear();
     _pageCount = null;
     _pageSizes.clear();
-
-    return true;
   }
 
   /// Open a PDF page with given index.
   /// Index is starting with 0.
   /// PDF must be opened with the `open` method before.
-  Future<int> openPage({required int pageIndex}) async {
+  Future<void> openPage({required int pageIndex}) async {
     if (_id == null) throw StateError('Please open the PDF first!');
 
-    if (_pages.contains(pageIndex)) return pageIndex;
+    if (_pages.contains(pageIndex)) return;
 
     if (Platform.isAndroid && _pages.isNotEmpty) {
       throw StateError(
@@ -70,8 +71,6 @@ class PdfImageRendererPdf {
     await PdfImageRenderer.openPdfPage(pdf: _id!, page: pageIndex);
 
     _pages.add(pageIndex);
-
-    return pageIndex;
   }
 
   /// Close an open PDF page with given index.
