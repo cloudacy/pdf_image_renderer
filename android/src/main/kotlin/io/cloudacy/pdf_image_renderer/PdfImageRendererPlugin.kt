@@ -164,6 +164,7 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
 
   private fun closePDFPage(@NonNull call: MethodCall, @NonNull result: Result) {
     val id = getArgument<Int>(call, result, "pdf") ?: return
+    val pageIndex = getArgument<Int>(call, result, "page") ?: return
 
     if (openPDFs[id] == null) {
       result.error("INVALID_ARGUMENTS", "No PDF found for id $id.", null)
@@ -180,7 +181,7 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
       page.close()
       openPDFPages.remove(id)
 
-      result.success(page)
+      result.success(pageIndex)
     } catch (e: Exception) {
       result.error("EXECUTION_ERROR", e.message, null)
     }

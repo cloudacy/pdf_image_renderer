@@ -87,6 +87,7 @@ class _MyAppState extends State<MyApp> {
     if (pdf != null) {
       await pdf!.close();
       setState(() {
+        pdf = null;
         open = false;
       });
     }
@@ -96,19 +97,23 @@ class _MyAppState extends State<MyApp> {
     await pdf!.openPage(pageIndex: pageIndex);
   }
 
+  Future<void> closePdfPage({required int pageIndex}) async {
+    await pdf!.closePage(pageIndex: pageIndex);
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
           title: const Text('Plugin example app'),
-          actions: <Widget>[
+          actions: [
             if (open == true)
               IconButton(
                 icon: Icon(Icons.crop),
-                onPressed: () {
+                onPressed: () async {
                   cropped = !cropped;
-                  renderPage();
+                  await renderPage();
                 },
               )
           ],
@@ -120,21 +125,19 @@ class _MyAppState extends State<MyApp> {
                 ElevatedButton(
                   child: Text('Select PDF'),
                   onPressed: () async {
-                    final result = await FilePicker.platform.pickFiles(
-                        type: FileType.custom, allowedExtensions: ['pdf']);
+                    final result =
+                        await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
 
                     if (result != null) {
                       await openPdf(path: result.paths[0]!);
                       pageIndex = 0;
                       count = await pdf!.getPageCount();
-                      await openPdfPage(pageIndex: pageIndex);
-                      renderPage();
+                      await renderPage();
                     }
                   },
                 ),
                 if (count != null) Text('The selected PDF has $count pages.'),
-                if (image != null)
-                  Text('It is ${size!.width} wide and ${size!.height} high.'),
+                if (image != null) Text('It is ${size!.width} wide and ${size!.height} high.'),
                 if (open == true)
                   ElevatedButton(
                     child: Text('Close PDF'),
@@ -154,8 +157,7 @@ class _MyAppState extends State<MyApp> {
                         onPressed: pageIndex > 0
                             ? () async {
                                 pageIndex -= 1;
-                                await openPdfPage(pageIndex: pageIndex);
-                                renderPage();
+                                await renderPage();
                               }
                             : null,
                         icon: Icon(Icons.chevron_left),
@@ -165,8 +167,7 @@ class _MyAppState extends State<MyApp> {
                         onPressed: pageIndex < (count! - 1)
                             ? () async {
                                 pageIndex += 1;
-                                await openPdfPage(pageIndex: pageIndex);
-                                renderPage();
+                                await renderPage();
                               }
                             : null,
                         icon: Icon(Icons.chevron_right),
