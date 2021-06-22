@@ -4,6 +4,10 @@
 - **BREAKING CHANGE**: Updated compileSDKVersion to 30.
 - **BREAKING CHANGE**: Updated APIs of `open`, `close` and `openPage` to not return internal values.
 
+### 0.6.1
+
+- Fix `close` method
+
 ## 0.5.0
 
 - Enabled dart strong mode
