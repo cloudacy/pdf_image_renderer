@@ -8,6 +8,10 @@
 
 - Fix `close` method
 
+### 0.6.2
+
+- Add more details to error messages
+
 ## 0.5.0
 
 - Enabled dart strong mode
