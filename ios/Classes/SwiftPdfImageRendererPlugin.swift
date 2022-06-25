@@ -314,15 +314,15 @@ public class SwiftPdfImageRendererPlugin: NSObject, FlutterPlugin {
     case PdfImageRendererError.badArguments:
       return FlutterError(code: "BAD_ARGS", message: "Bad arguments type", details: "Arguments have to be of type Dictionary<String, Any>.")
     case PdfImageRendererError.badArgument(let argument):
-      return FlutterError(code: "BAD_ARGS", message: "Argument \(argument) not set", details: nil)
+      return FlutterError(code: "BAD_ARGS", message: "Argument \(argument) not set", details: error.localizedDescription)
     case PdfImageRendererError.openError(let path):
-      return FlutterError(code: "ERR_OPEN", message: "Error while opening the pdf document for path \(path)", details: nil)
+        return FlutterError(code: "ERR_OPEN", message: "Error while opening the pdf document for path \(path)", details: error.localizedDescription)
     case PdfImageRendererError.closeError(let hash):
-      return FlutterError(code: "ERR_CLOSE", message: "Error while closing the pdf document with hash \(hash)", details: nil)
+      return FlutterError(code: "ERR_CLOSE", message: "Error while closing the pdf document with hash \(hash)", details: error.localizedDescription)
     case PdfImageRendererError.notOpen(let hash):
-      return FlutterError(code: "ERR_NOT_OPEN", message: "The requested pdf document with hash \(hash) is not opened!", details: nil)
+      return FlutterError(code: "ERR_NOT_OPEN", message: "The requested pdf document with hash \(hash) is not opened!", details: error.localizedDescription)
     case PdfImageRendererError.openPageError(let page):
-      return FlutterError(code: "ERR_OPEN", message: "Error while opening the pdf page \(page))", details: nil)
+      return FlutterError(code: "ERR_OPEN", message: "Error while opening the pdf page \(page))", details: error.localizedDescription)
     default:
       return FlutterError(code: "UNKNOWN_ERROR", message: "An unknown error occured.", details: error)
     }
