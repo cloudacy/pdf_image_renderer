@@ -1,17 +1,23 @@
 package io.cloudacy.pdf_image_renderer
 
+import android.app.Activity
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.pdf.PdfRenderer
 import android.graphics.pdf.PdfRenderer.Page
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
@@ -22,10 +28,27 @@ import java.io.File
 import kotlin.math.floor
 
 /** PdfImageRendererPlugin */
-class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
+class PdfImageRendererPlugin : FlutterPlugin, ActivityAware , MethodCallHandler {
+  /// The MethodChannel that will the communication between Flutter and native Android
+  ///
+  /// This local reference serves to register the plugin with the Flutter Engine and unregister it
+  /// when the Flutter Engine is detached from the Activity
+  private lateinit var channel: MethodChannel
+
+  private lateinit var activity: Activity
+
+  private var pluginBinding: FlutterPlugin.FlutterPluginBinding? = null
+  private var activityBinding: ActivityPluginBinding? = null
+
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-    val channel = MethodChannel(flutterPluginBinding.getFlutterEngine().getDartExecutor(), "pdf_image_renderer")
-    channel.setMethodCallHandler(PdfImageRendererPlugin())
+    Log.d(LOG_TAG, "onAttachedToEngine - IN")
+    if (pluginBinding != null) {
+      Log.w(LOG_TAG, "onAttachedToEngine - already attached")
+    }
+    pluginBinding = flutterPluginBinding
+    val messenger = pluginBinding?.binaryMessenger
+    doOnAttachedToEngine(messenger!!)
+    Log.d(LOG_TAG, "onAttachedToEngine - OUT")
   }
 
   // This static function is optional and equivalent to onAttachedToEngine. It supports the old
@@ -38,6 +61,7 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
   // depending on the user's project. onAttachedToEngine or registerWith must both be defined
   // in the same class.
   companion object {
+    const val LOG_TAG = "PdfImageRendererPlugin"
     @JvmStatic
     fun registerWith(registrar: Registrar) {
       val channel = MethodChannel(registrar.messenger(), "pdf_image_renderer")
@@ -77,6 +101,52 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
   }
 
+  // Note: This may be called multiple times on app startup.
+  override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+    Log.d(LOG_TAG, "onAttachedToActivity")
+    doOnAttachedToActivity(binding)
+  }
+
+  override fun onDetachedFromActivity() {
+    Log.d(LOG_TAG, "onDetachedFromActivity")
+    doOnDetachedFromActivity()
+  }
+
+  override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+    Log.d(LOG_TAG, "onReattachedToActivityForConfigChanges")
+    doOnAttachedToActivity(binding)
+  }
+
+  override fun onDetachedFromActivityForConfigChanges() {
+    Log.d(LOG_TAG, "onDetachedFromActivityForConfigChanges")
+    doOnDetachedFromActivity()
+  }
+
+  private fun doOnAttachedToActivity(activityBinding: ActivityPluginBinding?) {
+    Log.d(LOG_TAG, "doOnAttachedToActivity - IN")
+
+    this.activityBinding = activityBinding
+
+    Log.d(LOG_TAG, "doOnAttachedToActivity - OUT")
+  }
+
+  private fun doOnDetachedFromActivity() {
+    Log.d(LOG_TAG, "doOnDetachedFromActivity - IN")
+
+    activityBinding = null
+
+    Log.d(LOG_TAG, "doOnDetachedFromActivity - OUT")
+  }
+
+  private fun doOnAttachedToEngine(messenger: BinaryMessenger) {
+    Log.d(LOG_TAG, "doOnAttachedToEngine - IN")
+
+    this.channel = MethodChannel(messenger, "pdf_image_renderer")
+    this.channel.setMethodCallHandler(this)
+
+    Log.d(LOG_TAG, "doOnAttachedToEngine - OUT")
+  }
+
   private val openPFDs: MutableMap<Int, ParcelFileDescriptor> = mutableMapOf()
   private val openPDFs: MutableMap<Int, PdfRenderer> = mutableMapOf()
   private val openPDFPages: MutableMap<Int, Page> = mutableMapOf()
@@ -94,7 +164,9 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
       val handler = Handler(Looper.getMainLooper())
 
       try {
-        val pfd = ParcelFileDescriptor.open(File(path), ParcelFileDescriptor.MODE_READ_ONLY)
+        val contentResolver = activity.contentResolver
+        val pfd : ParcelFileDescriptor = contentResolver.openFileDescriptor(getURI(path), "r")!!
+
         openPFDs[pfd.fd] = pfd
         openPDFs[pfd.fd] = PdfRenderer(pfd)
 
@@ -296,5 +368,13 @@ class PdfImageRendererPlugin: FlutterPlugin, MethodCallHandler {
     )
 
     return bitmap
+  }
+
+  private fun getURI(uri: String): Uri {
+    val parsed: Uri = Uri.parse(uri)
+    val parsedScheme: String? = parsed.scheme
+    return if ((parsedScheme == null) || parsedScheme.isEmpty()) {
+      Uri.fromFile(File(uri))
+    } else parsed
   }
 }
