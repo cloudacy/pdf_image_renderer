@@ -1,8 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
-
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 /// PDF according to a [PdfImageRenderer] to convert it to a bitmap.
@@ -80,7 +77,9 @@ class PdfImageRendererPdf {
   Future<void> closePage({required int pageIndex}) async {
     if (_id == null) throw StateError('Please open the PDF first!');
 
-    if (!_pages.contains(pageIndex)) throw StateError('PDF page $pageIndex is not open!');
+    if (!_pages.contains(pageIndex)) {
+      throw StateError('PDF page $pageIndex is not open!');
+    }
 
     await PdfImageRenderer.closePdfPage(pdf: _id!, page: pageIndex);
 
@@ -116,7 +115,8 @@ class PdfImageRendererPdf {
     // Open the page, if required.
     if (autoOpenClosePage) await openPage(pageIndex: pageIndex);
 
-    _pageSizes[pageIndex] = await PdfImageRenderer.getPDFPageSize(pdf: _id!, page: pageIndex);
+    _pageSizes[pageIndex] =
+        await PdfImageRenderer.getPDFPageSize(pdf: _id!, page: pageIndex);
 
     // Close the page, if required.
     if (autoOpenClosePage) await closePage(pageIndex: pageIndex);
@@ -252,7 +252,8 @@ class PdfImageRenderer {
     required int pdf,
     required int page,
   }) async {
-    final size = (await _channel.invokeMapMethod<String, int>('getPDFPageSize', {
+    final size =
+        (await _channel.invokeMapMethod<String, int>('getPDFPageSize', {
       'pdf': pdf,
       'page': page,
     }))!;
@@ -286,8 +287,8 @@ class PdfImageRenderer {
     if (width == null || height == null) {
       size = await getPDFPageSize(pdf: pdf, page: page);
 
-      if (width == null) width = size.width;
-      if (height == null) height = size.height;
+      width ??= size.width;
+      height ??= size.height;
     }
 
     final image = await _channel.invokeMethod<Uint8List>('renderPDFPage', {

@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdf_image_renderer/pdf_image_renderer.dart';
 
-void main() => runApp(MyApp());
+void main() => runApp(const MyApp());
 
 class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
-  _MyAppState createState() => _MyAppState();
+  State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
@@ -48,7 +50,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> renderPageMultipleTimes() async {
-    final count = 50;
+    const count = 50;
 
     await pdf!.openPage(pageIndex: pageIndex);
 
@@ -120,7 +122,7 @@ class _MyAppState extends State<MyApp> {
           actions: [
             if (open == true)
               IconButton(
-                icon: Icon(Icons.crop),
+                icon: const Icon(Icons.crop),
                 onPressed: () async {
                   cropped = !cropped;
                   await renderPage();
@@ -133,10 +135,10 @@ class _MyAppState extends State<MyApp> {
             child: Column(
               children: <Widget>[
                 ElevatedButton(
-                  child: Text('Select PDF'),
+                  child: const Text('Select PDF'),
                   onPressed: () async {
-                    final result =
-                        await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+                    final result = await FilePicker.platform.pickFiles(
+                        type: FileType.custom, allowedExtensions: ['pdf']);
 
                     if (result != null) {
                       await openPdf(path: result.paths[0]!);
@@ -147,16 +149,17 @@ class _MyAppState extends State<MyApp> {
                   },
                 ),
                 if (count != null) Text('The selected PDF has $count pages.'),
-                if (image != null) Text('It is ${size!.width} wide and ${size!.height} high.'),
+                if (image != null)
+                  Text('It is ${size!.width} wide and ${size!.height} high.'),
                 if (open == true)
                   ElevatedButton(
-                    child: Text('Close PDF'),
+                    child: const Text('Close PDF'),
                     onPressed: () async {
                       await closePdf();
                     },
                   ),
                 if (image != null) ...[
-                  Text('Rendered image area:'),
+                  const Text('Rendered image area:'),
                   Image(image: MemoryImage(image!)),
                 ],
                 if (open == true) ...[
@@ -170,8 +173,8 @@ class _MyAppState extends State<MyApp> {
                                 await renderPage();
                               }
                             : null,
-                        icon: Icon(Icons.chevron_left),
-                        label: Text('Previous'),
+                        icon: const Icon(Icons.chevron_left),
+                        label: const Text('Previous'),
                       ),
                       TextButton.icon(
                         onPressed: pageIndex < (count! - 1)
@@ -180,8 +183,8 @@ class _MyAppState extends State<MyApp> {
                                 await renderPage();
                               }
                             : null,
-                        icon: Icon(Icons.chevron_right),
-                        label: Text('Next'),
+                        icon: const Icon(Icons.chevron_right),
+                        label: const Text('Next'),
                       ),
                     ],
                   ),
@@ -190,7 +193,7 @@ class _MyAppState extends State<MyApp> {
                       onPressed: () {
                         renderPageMultipleTimes();
                       },
-                      child: Text('Async rendering test'),
+                      child: const Text('Async rendering test'),
                     ),
                   if (asyncTasks > 0) Text('$asyncTasks remaining tasks'),
                 ]
