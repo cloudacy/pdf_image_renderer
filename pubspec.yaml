@@ -6,8 +6,8 @@ repository: https://github.com/cloudacy/pdf_image_renderer
 issue_tracker: https://github.com/cloudacy/pdf_image_renderer/issues
 
 environment:
-  sdk: '>=2.17.0 <3.0.0'
-  flutter: ">=2.5.0"
+  sdk: '>=2.12.0 <3.0.0'
+  flutter: ">=1.17.0"
 
 dependencies:
   flutter:
