@@ -24,6 +24,8 @@ class PdfImageRendererPdf {
     required String path,
   }) : _path = path;
 
+  String get path => _path;
+
   /// Open the PDF by the path this [PdfImageRendererPdf] was initialized with.
   ///
   /// Must be closed with the [close] method to free up memory.
@@ -115,8 +117,7 @@ class PdfImageRendererPdf {
     // Open the page, if required.
     if (autoOpenClosePage) await openPage(pageIndex: pageIndex);
 
-    _pageSizes[pageIndex] =
-        await PdfImageRenderer.getPDFPageSize(pdf: _id!, page: pageIndex);
+    _pageSizes[pageIndex] = await PdfImageRenderer.getPDFPageSize(pdf: _id!, page: pageIndex);
 
     // Close the page, if required.
     if (autoOpenClosePage) await closePage(pageIndex: pageIndex);
@@ -252,8 +253,7 @@ class PdfImageRenderer {
     required int pdf,
     required int page,
   }) async {
-    final size =
-        (await _channel.invokeMapMethod<String, int>('getPDFPageSize', {
+    final size = (await _channel.invokeMapMethod<String, int>('getPDFPageSize', {
       'pdf': pdf,
       'page': page,
     }))!;
