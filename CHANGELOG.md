@@ -6,6 +6,10 @@
 - Lowered minimum required Flutter SDK version to 1.17.0.
 - Lowered minimum required Dart SDK version to 2.12.0.
 
+### 0.7.1
+
+- Allow to get the `path` from a `PdfImageRendererPdf`
+
 ## 0.6.0
 
 - **BREAKING CHANGE**: Updated gradle plugin version from 3.5.0 to 4.2.1.
