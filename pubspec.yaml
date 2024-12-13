@@ -2,21 +2,18 @@ name: pdf_image_renderer
 description: A package that allows fast and simple rendering of pdfs using the native renderers of the OS.
 version: 0.7.1
 homepage: https://github.com/cloudacy/pdf_image_renderer
-repository: https://github.com/cloudacy/pdf_image_renderer
-issue_tracker: https://github.com/cloudacy/pdf_image_renderer/issues
 
 environment:
-  sdk: '>=2.12.0 <3.0.0'
-  flutter: ">=1.17.0"
+  sdk: ^3.6.0
+  flutter: '>=3.3.0'
 
 dependencies:
   flutter:
     sdk: flutter
+  plugin_platform_interface: ^2.0.2
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^2.0.1
+  flutter_lints: ^5.0.0
 
 flutter:
   plugin:

@@ -1,9 +1,11 @@
-import 'dart:async';
 import 'dart:io';
-import 'package:flutter/services.dart';
+import 'dart:typed_data';
+import 'dart:ui';
+
+import 'pdf_image_renderer_platform_interface.dart';
 
 /// PDF according to a [PdfImageRenderer] to convert it to a bitmap.
-class PdfImageRendererPdf {
+class PdfImageRenderer {
   /// Path to the PDF file.
   final String _path;
 
@@ -20,7 +22,7 @@ class PdfImageRendererPdf {
   final _pageSizes = <int, PdfImageRendererPageSize>{};
 
   /// Construct a new renderer PDF by a given [path].
-  PdfImageRendererPdf({
+  PdfImageRenderer({
     required String path,
   }) : _path = path;
 
@@ -32,7 +34,7 @@ class PdfImageRendererPdf {
   Future<void> open() async {
     if (_id != null) return;
 
-    _id = await PdfImageRenderer.openPdf(path: _path);
+    _id = await PdfImageRendererPlatform.instance.openPdf(path: _path);
   }
 
   /// Closes the PDF.
@@ -47,7 +49,7 @@ class PdfImageRendererPdf {
       await closePage(pageIndex: page);
     }
 
-    await PdfImageRenderer.closePdf(pdf: _id!);
+    await PdfImageRendererPlatform.instance.closePdf(pdf: _id!);
 
     _id = null;
     _pages.clear();
@@ -68,7 +70,7 @@ class PdfImageRendererPdf {
           'The native Android PDF renderer only allows one open page for each PdfImageRendererPdf instance. Please close the open page first.');
     }
 
-    await PdfImageRenderer.openPdfPage(pdf: _id!, page: pageIndex);
+    await PdfImageRendererPlatform.instance.openPdfPage(pdf: _id!, page: pageIndex);
 
     _pages.add(pageIndex);
   }
@@ -83,7 +85,7 @@ class PdfImageRendererPdf {
       throw StateError('PDF page $pageIndex is not open!');
     }
 
-    await PdfImageRenderer.closePdfPage(pdf: _id!, page: pageIndex);
+    await PdfImageRendererPlatform.instance.closePdfPage(pdf: _id!, page: pageIndex);
 
     _pages.remove(pageIndex);
   }
@@ -96,7 +98,7 @@ class PdfImageRendererPdf {
     // Check page count cache.
     if (_pageCount != null) return _pageCount!;
 
-    _pageCount = await PdfImageRenderer.getPDFPageCount(pdf: _id!);
+    _pageCount = await PdfImageRendererPlatform.instance.getPdfPageCount(pdf: _id!);
 
     return _pageCount!;
   }
@@ -117,7 +119,7 @@ class PdfImageRendererPdf {
     // Open the page, if required.
     if (autoOpenClosePage) await openPage(pageIndex: pageIndex);
 
-    _pageSizes[pageIndex] = await PdfImageRenderer.getPDFPageSize(pdf: _id!, page: pageIndex);
+    _pageSizes[pageIndex] = await PdfImageRendererPlatform.instance.getPdfPageSize(pdf: _id!, page: pageIndex);
 
     // Close the page, if required.
     if (autoOpenClosePage) await closePage(pageIndex: pageIndex);
@@ -150,7 +152,7 @@ class PdfImageRendererPdf {
 
     if (autoOpenClosePage) await openPage(pageIndex: pageIndex);
 
-    final bytes = await PdfImageRenderer.renderPDFPage(
+    final bytes = await PdfImageRendererPlatform.instance.renderPdfPage(
       pdf: _id!,
       page: pageIndex,
       x: x,
@@ -177,130 +179,4 @@ class PdfImageRendererPageSize {
 
   /// Construct a size object by the given [width] and [height].
   const PdfImageRendererPageSize({required this.width, required this.height});
-}
-
-/// Renderer for converting PDFs to bitmaps.
-class PdfImageRenderer {
-  static const MethodChannel _channel = MethodChannel('pdf_image_renderer');
-
-  /// Open a PDF from the given [path].
-  static Future<int?> openPdf({
-    required String path,
-  }) async {
-    final pdf = await _channel.invokeMethod<int>('openPDF', {
-      'path': path,
-    });
-    return pdf;
-  }
-
-  /// Close a PDF by the given [pdf] identifier.
-  ///
-  /// The identifier comes from the [openPdf] method.
-  static Future<int?> closePdf({
-    required int pdf,
-  }) async {
-    final id = await _channel.invokeMethod<int>('closePDF', {
-      'pdf': pdf,
-    });
-    return id;
-  }
-
-  /// Open a PDF page by the given [pdf] identifier and the given [page] index.
-  ///
-  /// Index is starting with `0`.
-  static Future<int?> openPdfPage({
-    required int pdf,
-    required int page,
-  }) async {
-    final index = await _channel.invokeMethod<int>('openPDFPage', {
-      'pdf': pdf,
-      'page': page,
-    });
-    return index;
-  }
-
-  /// Close a PDF page by the given [pdf] identifier and the given [page] index.
-  ///
-  /// Index is starting with `0`.
-  static Future<int?> closePdfPage({
-    required int pdf,
-    required int page,
-  }) async {
-    if (Platform.isAndroid) {
-      final index = await _channel.invokeMethod<int>('closePDFPage', {
-        'pdf': pdf,
-        'page': page,
-      });
-      return index;
-    } else {
-      return page;
-    }
-  }
-
-  /// Returns the number of pages for the PDF located at given path.
-  static Future<int?> getPDFPageCount({
-    required int pdf,
-  }) async {
-    final count = await _channel.invokeMethod<int>('getPDFPageCount', {
-      'pdf': pdf,
-    });
-    return count;
-  }
-
-  /// Returns an instance of [PdfImageRendererPageSize], holding the width and height in points
-  /// of the page at given index of the PDF located at given path.
-  static Future<PdfImageRendererPageSize> getPDFPageSize({
-    required int pdf,
-    required int page,
-  }) async {
-    final size = (await _channel.invokeMapMethod<String, int>('getPDFPageSize', {
-      'pdf': pdf,
-      'page': page,
-    }))!;
-
-    return PdfImageRendererPageSize(
-      width: size['width']!,
-      height: size['height']!,
-    );
-  }
-
-  /// Converts a given [page] from a given [pdf] to a bitmap.
-  ///
-  /// Optionally crop the output image to a given [x] and [y] coordinate with a given [width], [height].
-  ///
-  /// With the [scale] argument you can control the output resolution.
-  /// Default scale is `1` which means that the output image has exactly the size of the PDF.
-  ///
-  /// Optionally set the [background] color which will be used instead of transparency.
-  static Future<Uint8List?> renderPDFPage({
-    required int pdf,
-    required int page,
-    int? x,
-    int? y,
-    int? width,
-    int? height,
-    double? scale,
-    Color background = const Color(0xFFFFFFFF),
-  }) async {
-    PdfImageRendererPageSize size;
-
-    if (width == null || height == null) {
-      size = await getPDFPageSize(pdf: pdf, page: page);
-
-      width ??= size.width;
-      height ??= size.height;
-    }
-
-    final image = await _channel.invokeMethod<Uint8List>('renderPDFPage', {
-      'pdf': pdf,
-      'page': page,
-      'x': x,
-      'y': y,
-      'width': width,
-      'height': height,
-      'scale': scale,
-      'background': '#${background.value.toRadixString(16)}',
-    });
-    return image;
-  }
 }
