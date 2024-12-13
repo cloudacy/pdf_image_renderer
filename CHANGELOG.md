@@ -1,3 +1,12 @@
+## 1.0.0
+
+- Now uses the platform interface
+- New version requirements:
+  - Android: minSdk = 21
+  - iOS: min Version = 12.0
+  - dart: ^3.6.0
+  - flutter >=3.3.0
+
 ## 0.7.0
 
 - **BREAKING CHANGE**: AGP updated to 7.3.0
