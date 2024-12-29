@@ -156,12 +156,13 @@ class PdfImageRendererPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
                 val contentResolver = activityBinding!!.activity.contentResolver
                 val pfd: ParcelFileDescriptor =
                     contentResolver.openFileDescriptor(getURI(path), "r")!!
+                val pfdFd = pfd.fd
 
-                openPFDs[pfd.fd] = pfd
-                openPDFs[pfd.fd] = PdfRenderer(pfd)
+                openPFDs[pfdFd] = pfd
+                openPDFs[pfdFd] = PdfRenderer(pfd)
 
                 handler.post {
-                    result.success(pfd.fd)
+                    result.success(pfdFd)
                 }
             } catch (e: Exception) {
                 handler.post {
