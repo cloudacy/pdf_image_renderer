@@ -7,7 +7,7 @@ import 'package:pdf_image_renderer/pdf_image_renderer.dart';
 void main() => runApp(const MyApp());
 
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -19,7 +19,7 @@ class _MyAppState extends State<MyApp> {
 
   bool open = false;
 
-  PdfImageRendererPdf? pdf;
+  PdfImageRenderer? pdf;
   int? count;
   PdfImageRendererPageSize? size;
 
@@ -88,7 +88,7 @@ class _MyAppState extends State<MyApp> {
     if (pdf != null) {
       await pdf!.close();
     }
-    pdf = PdfImageRendererPdf(path: path);
+    pdf = PdfImageRenderer(path: path);
     await pdf!.open();
     setState(() {
       open = true;
@@ -137,8 +137,8 @@ class _MyAppState extends State<MyApp> {
                 ElevatedButton(
                   child: const Text('Select PDF'),
                   onPressed: () async {
-                    final result = await FilePicker.platform.pickFiles(
-                        type: FileType.custom, allowedExtensions: ['pdf']);
+                    final result =
+                        await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
 
                     if (result != null) {
                       await openPdf(path: result.paths[0]!);
@@ -149,8 +149,7 @@ class _MyAppState extends State<MyApp> {
                   },
                 ),
                 if (count != null) Text('The selected PDF has $count pages.'),
-                if (image != null)
-                  Text('It is ${size!.width} wide and ${size!.height} high.'),
+                if (image != null) Text('It is ${size!.width} wide and ${size!.height} high.'),
                 if (open == true)
                   ElevatedButton(
                     child: const Text('Close PDF'),
