@@ -1,7 +1,8 @@
 ## 1.0.0
 
-- Now uses the platform interface
-- New version requirements:
+- **BREAKING CHANGE**: Now uses the platform interface
+  - `PdfImageRendererPdf` renamed to `PdfImageRenderer`
+- **BREAKING CHANGE**: New version requirements:
   - Android: minSdk = 21
   - iOS: min Version = 12.0
   - dart: ^3.6.0
