@@ -22,7 +22,7 @@ class _MyAppState extends State<MyApp> {
     String path = await FilePicker.getFilePath(type: FileType.custom, allowedExtensions: ['pdf']);
 
     // Initialize the renderer
-    final pdf = PdfImageRendererPdf(path: path);
+    final pdf = PdfImageRenderer(path: path);
 
     // open the pdf document
     await pdf.open()

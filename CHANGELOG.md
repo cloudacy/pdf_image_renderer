@@ -8,6 +8,10 @@
   - dart: ^3.6.0
   - flutter >=3.3.0
 
+### 1.0.1
+
+- Fixes an issue on Android devices when opening a PDF ([#5](https://github.com/cloudacy/pdf_image_renderer/issues/5))
+
 ## 0.7.0
 
 - **BREAKING CHANGE**: AGP updated to 7.3.0
