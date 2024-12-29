@@ -31,10 +31,18 @@ class PdfImageRenderer {
   /// Open the PDF by the path this [PdfImageRendererPdf] was initialized with.
   ///
   /// Must be closed with the [close] method to free up memory.
-  Future<void> open() async {
+  ///
+  /// Provide an optional [password] to unlock a locked PDF file.
+  /// **Support on Android devices is limited to Android 15.0+ (SDK >= 35). Ignored on devices with Android < 15.0 (SDK < 35).**
+  Future<void> open({
+    String? password,
+  }) async {
     if (_id != null) return;
 
-    _id = await PdfImageRendererPlatform.instance.openPdf(path: _path);
+    _id = await PdfImageRendererPlatform.instance.openPdf(
+      path: _path,
+      password: password,
+    );
   }
 
   /// Closes the PDF.

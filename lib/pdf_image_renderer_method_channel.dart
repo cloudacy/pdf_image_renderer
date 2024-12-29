@@ -16,9 +16,11 @@ class MethodChannelPdfImageRenderer extends PdfImageRendererPlatform {
   @override
   Future<int?> openPdf({
     required String path,
+    String? password,
   }) async {
     final pdf = await methodChannel.invokeMethod<int>('openPDF', {
       'path': path,
+      if (password case final password?) 'password': password,
     });
     return pdf;
   }

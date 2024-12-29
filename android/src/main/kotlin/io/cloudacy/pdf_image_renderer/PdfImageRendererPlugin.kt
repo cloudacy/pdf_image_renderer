@@ -4,9 +4,11 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Rect
+import android.graphics.pdf.LoadParams
 import android.graphics.pdf.PdfRenderer
 import android.graphics.pdf.PdfRenderer.Page
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
@@ -148,6 +150,7 @@ class PdfImageRendererPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
 
     private fun openPDF(call: MethodCall, result: Result) {
         val path = getArgument<String>(call, result, "path") ?: return
+        val password = getArgument<String>(call, result, "password", optional = true)
 
         Thread {
             val handler = Handler(Looper.getMainLooper())
@@ -159,7 +162,17 @@ class PdfImageRendererPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
                 val pfdFd = pfd.fd
 
                 openPFDs[pfdFd] = pfd
-                openPDFs[pfdFd] = PdfRenderer(pfd)
+
+                // Allow to open password-protected PDFs on Android 15.0+ devices.
+                if (Build.VERSION.SDK_INT >= 35) {
+                    val loadParams = LoadParams.Builder()
+                    password?.let {
+                        loadParams.setPassword(it)
+                    }
+                    openPDFs[pfdFd] = PdfRenderer(pfd, loadParams.build())
+                } else {
+                    openPDFs[pfdFd] = PdfRenderer(pfd)
+                }
 
                 handler.post {
                     result.success(pfdFd)

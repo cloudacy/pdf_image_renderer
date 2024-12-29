@@ -57,6 +57,18 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
       throw PdfImageRendererError.openError(path)
     }
 
+    // Unlock PDF if required.
+    if pdf.isEncrypted && !pdf.isUnlocked {
+      if let password = arguments["password"] as? String {
+        pdf.unlockWithPassword(password)
+      }
+
+      // Check if PDF is now unlocked.
+      if !pdf.isUnlocked {
+        throw PdfImageRendererError.badPassword(path)
+      }
+    }
+
     openPdfs[path.hashValue] = pdf
 
     return path.hashValue

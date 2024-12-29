@@ -25,7 +25,9 @@ class _MyAppState extends State<MyApp> {
     final pdf = PdfImageRenderer(path: path);
 
     // open the pdf document
-    await pdf.open()
+    await pdf.open(
+      // password: 'password', // optional (iOS and Android 15.0+ support - ignored otherwise)
+    )
 
     // open a page from the pdf document using the page index
     await pdf.openPage(pageIndex: 0);

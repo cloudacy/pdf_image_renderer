@@ -4,16 +4,29 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdf_image_renderer/pdf_image_renderer.dart';
 
-void main() => runApp(const MyApp());
+void main() => runApp(const ExampleApp());
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+class ExampleApp extends StatelessWidget {
+  const ExampleApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: PdfImageRendererExample(),
+    );
+  }
 }
 
-class _MyAppState extends State<MyApp> {
+class PdfImageRendererExample extends StatefulWidget {
+  const PdfImageRendererExample({super.key});
+
+  @override
+  State<PdfImageRendererExample> createState() => _PdfImageRendererExampleState();
+}
+
+class _PdfImageRendererExampleState extends State<PdfImageRendererExample> {
+  final TextEditingController password = TextEditingController();
+
   int pageIndex = 0;
   Uint8List? image;
 
@@ -28,8 +41,9 @@ class _MyAppState extends State<MyApp> {
   int asyncTasks = 0;
 
   @override
-  void initState() {
-    super.initState();
+  void dispose() {
+    super.dispose();
+    password.dispose();
   }
 
   Future<void> renderPage() async {
@@ -85,24 +99,28 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> openPdf({required String path}) async {
-    if (pdf != null) {
-      await pdf!.close();
-    }
-    pdf = PdfImageRenderer(path: path);
-    await pdf!.open();
+    await closePdf();
+
+    final newPdf = PdfImageRenderer(path: path);
+    await newPdf.open(
+      password: password.text.isNotEmpty ? password.text : null,
+    );
+
     setState(() {
+      pdf = newPdf;
       open = true;
     });
   }
 
   Future<void> closePdf() async {
-    if (pdf != null) {
-      await pdf!.close();
-      setState(() {
-        pdf = null;
-        open = false;
-      });
-    }
+    await pdf?.close();
+    setState(() {
+      pdf = null;
+      open = false;
+      count = null;
+      image = null;
+      size = null;
+    });
   }
 
   Future<void> openPdfPage({required int pageIndex}) async {
@@ -113,30 +131,42 @@ class _MyAppState extends State<MyApp> {
     await pdf!.closePage(pageIndex: pageIndex);
   }
 
+  void showError(Object error) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      content: Text(error.toString()),
+      duration: Duration(seconds: 10),
+      backgroundColor: Colors.red,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
+      action: SnackBarAction(onPressed: () {}, label: 'OK', textColor: Colors.white),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Plugin example app'),
-          actions: [
-            if (open == true)
-              IconButton(
-                icon: const Icon(Icons.crop),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Plugin example app'),
+        actions: [
+          if (open == true)
+            IconButton(
+              icon: const Icon(Icons.crop),
+              onPressed: () async {
+                cropped = !cropped;
+                await renderPage();
+              },
+            )
+        ],
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              ElevatedButton(
+                child: const Text('Select PDF'),
                 onPressed: () async {
-                  cropped = !cropped;
-                  await renderPage();
-                },
-              )
-          ],
-        ),
-        body: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              children: <Widget>[
-                ElevatedButton(
-                  child: const Text('Select PDF'),
-                  onPressed: () async {
+                  try {
                     final result =
                         await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
 
@@ -146,58 +176,64 @@ class _MyAppState extends State<MyApp> {
                       count = await pdf!.getPageCount();
                       await renderPage();
                     }
+                  } catch (e) {
+                    showError(e);
+                  }
+                },
+              ),
+              TextField(
+                controller: password,
+                decoration: InputDecoration(labelText: 'password (optional)'),
+              ),
+              if (count != null) Text('The selected PDF has $count pages.'),
+              if (size case final size?) Text('It is ${size.width} wide and ${size.height} high.'),
+              if (open == true)
+                ElevatedButton(
+                  child: const Text('Close PDF'),
+                  onPressed: () async {
+                    await closePdf();
                   },
                 ),
-                if (count != null) Text('The selected PDF has $count pages.'),
-                if (image != null) Text('It is ${size!.width} wide and ${size!.height} high.'),
-                if (open == true)
-                  ElevatedButton(
-                    child: const Text('Close PDF'),
-                    onPressed: () async {
-                      await closePdf();
-                    },
-                  ),
-                if (image != null) ...[
-                  const Text('Rendered image area:'),
-                  Image(image: MemoryImage(image!)),
-                ],
-                if (open == true) ...[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      TextButton.icon(
-                        onPressed: pageIndex > 0
-                            ? () async {
-                                pageIndex -= 1;
-                                await renderPage();
-                              }
-                            : null,
-                        icon: const Icon(Icons.chevron_left),
-                        label: const Text('Previous'),
-                      ),
-                      TextButton.icon(
-                        onPressed: pageIndex < (count! - 1)
-                            ? () async {
-                                pageIndex += 1;
-                                await renderPage();
-                              }
-                            : null,
-                        icon: const Icon(Icons.chevron_right),
-                        label: const Text('Next'),
-                      ),
-                    ],
-                  ),
-                  if (asyncTasks <= 0)
-                    TextButton(
-                      onPressed: () {
-                        renderPageMultipleTimes();
-                      },
-                      child: const Text('Async rendering test'),
-                    ),
-                  if (asyncTasks > 0) Text('$asyncTasks remaining tasks'),
-                ]
+              if (image case final image?) ...[
+                const Text('Rendered image area:'),
+                Image(image: MemoryImage(image)),
               ],
-            ),
+              if (open == true) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    TextButton.icon(
+                      onPressed: pageIndex > 0
+                          ? () async {
+                              pageIndex -= 1;
+                              await renderPage();
+                            }
+                          : null,
+                      icon: const Icon(Icons.chevron_left),
+                      label: const Text('Previous'),
+                    ),
+                    TextButton.icon(
+                      onPressed: pageIndex < (count! - 1)
+                          ? () async {
+                              pageIndex += 1;
+                              await renderPage();
+                            }
+                          : null,
+                      icon: const Icon(Icons.chevron_right),
+                      label: const Text('Next'),
+                    ),
+                  ],
+                ),
+                if (asyncTasks <= 0)
+                  TextButton(
+                    onPressed: () {
+                      renderPageMultipleTimes();
+                    },
+                    child: const Text('Async rendering test'),
+                  ),
+                if (asyncTasks > 0) Text('$asyncTasks remaining tasks'),
+              ]
+            ],
           ),
         ),
       ),

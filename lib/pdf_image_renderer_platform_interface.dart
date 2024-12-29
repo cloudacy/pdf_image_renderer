@@ -29,6 +29,7 @@ abstract class PdfImageRendererPlatform extends PlatformInterface {
 
   Future<int?> openPdf({
     required String path,
+    String? password,
   }) async {
     throw UnimplementedError('openPdf() has not been implemented.');
   }
