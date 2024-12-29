@@ -99,8 +99,6 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
   }
 
   private func renderPdfPage(page: CGPDFPage, width: Int, height: Int, scale: Double, x: Int, y: Int) -> Data? {
-//    let initRenderTime = DispatchTime.now()
-//    print("init render")
     let image: Data
 
     let pageRect = page.getBoxRect(.cropBox)
@@ -114,9 +112,6 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
     let rotatedPageRect = pageRect.applying(CGAffineTransform(rotationAngle: angle))
 
     let transform = page.getDrawingTransform(.cropBox, rect: CGRect(x: 0, y: 0, width: Double(rotatedPageRect.width), height: Double(rotatedPageRect.height)), rotate: 0, preserveAspectRatio: true)
-
-//    let startRenderTime = DispatchTime.now()
-//    print("start render +\(Double(startRenderTime.uptimeNanoseconds - initRenderTime.uptimeNanoseconds) / 1000000000)s")
 
     UIGraphicsBeginImageContext(size)
     let ctx = UIGraphicsGetCurrentContext()!
@@ -132,9 +127,6 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
 
     image = UIGraphicsGetImageFromCurrentImageContext()!.pngData()!
     UIGraphicsEndImageContext()
-
-//    let endRenderTime = DispatchTime.now()
-//    print("finished rendering +\(Double(endRenderTime.uptimeNanoseconds - startRenderTime.uptimeNanoseconds) / 1000000000)s")
 
     return image
   }
@@ -325,6 +317,8 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
     switch error {
     case PdfImageRendererError.badArguments:
       return FlutterError(code: "BAD_ARGS", message: "Bad arguments type", details: "Arguments have to be of type Dictionary<String, Any>.")
+    case PdfImageRendererError.badPassword(let pdfPath):
+      return FlutterError(code: "BAD_PASSWORD", message: "Bad or missing password", details: pdfPath)
     case PdfImageRendererError.badArgument(let argument):
       return FlutterError(code: "BAD_ARGS", message: "Argument \(argument) not set", details: error.localizedDescription)
     case PdfImageRendererError.openError(let path):
@@ -344,6 +338,7 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
 enum PdfImageRendererError: Error {
   case badArguments
   case badArgument(_ argument: String)
+  case badPassword(_ pdfPath: String)
   case openError(_ path: String)
   case closeError(_ hashValue: Int)
   case notOpen(_ hashValue: Int)
