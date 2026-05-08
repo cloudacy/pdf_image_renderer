@@ -20,7 +20,7 @@ class MethodChannelPdfImageRenderer extends PdfImageRendererPlatform {
   }) async {
     final pdf = await methodChannel.invokeMethod<int>('openPDF', {
       'path': path,
-      if (password case final password?) 'password': password,
+      'password': ?password,
     });
     return pdf;
   }
