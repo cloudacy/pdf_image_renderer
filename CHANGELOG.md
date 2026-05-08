@@ -1,3 +1,10 @@
+## 2.0.0
+
+- **BREAKING CHANGE**: Add SwiftPM support
+  - requires iOS >=13.0
+  - requires dart >=3.11
+  - requires Flutter >=3.41
+
 ## 1.0.0
 
 - **BREAKING CHANGE**: Now uses the platform interface
