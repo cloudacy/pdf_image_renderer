@@ -2,7 +2,8 @@ import Flutter
 import UIKit
 
 public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
-  private let dispatchQueue = DispatchQueue(label: "io.cloudacy.pdf_image_renderer", qos: .userInitiated, attributes: .concurrent)
+  private let taskQueue = DispatchQueue(label: "io.cloudacy.pdf_image_renderer.tasks", qos: .userInitiated, attributes: .concurrent)
+  private let pdfStateQueue = DispatchQueue(label: "io.cloudacy.pdf_image_renderer.pdf_states", attributes: .concurrent)
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "pdf_image_renderer", binaryMessenger: registrar.messenger())
@@ -13,41 +14,154 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "openPDF":
-      openPDFHandler(call, result: result)
+      enqueueTask(call: call, result: result, task: openPDFHandler)
     case "closePDF":
-      closePDFHandler(call, result: result)
+      enqueueTask(call: call, result: result, task: closePDFHandler)
     case "openPDFPage":
-      openPDFPageHandler(call, result: result)
+      enqueueTask(call: call, result: result, task: openPDFPageHandler)
+    case "closePDFPage":
+      enqueueTask(call: call, result: result, task: closePDFPageHandler)
     case "renderPDFPage":
-      renderPDFPageHandler(call, result: result)
+      enqueueTask(call: call, result: result, task: renderPDFPageHandler)
     case "getPDFPageSize":
-      pdfPageSizeHandler(call, result: result)
+      enqueueTask(call: call, result: result, task: pdfPageSizeHandler)
     case "getPDFPageCount":
-      pdfPageCountHandler(call, result: result)
+      enqueueTask(call: call, result: result, task: pdfPageCountHandler)
     default:
       result(FlutterMethodNotImplemented)
     }
   }
 
-  private var openPdfs: [Int: CGPDFDocument] = [:]
-  private var openPdfPages: [Int: [Int: CGPDFPage]] = [:]
+  private func enqueueTask(call: FlutterMethodCall, result: @escaping FlutterResult, task: @escaping ([String: Any]) throws -> Any?) {
+    taskQueue.async {
+      do {
+        guard let args = call.arguments as? [String: Any] else {
+          throw PdfImageRendererError.badArguments
+        }
 
-  private func getDictionaryArguments(_ call: FlutterMethodCall) throws -> Dictionary<String, Any> {
-    guard let arguments = call.arguments as? Dictionary<String, Any> else {
-      throw PdfImageRendererError.badArguments
+        let taskResult = try task(args)
+
+        DispatchQueue.main.async {
+          result(taskResult)
+        }
+      } catch {
+        DispatchQueue.main.async {
+          result(self.handlePdfError(error))
+        }
+      }
     }
-
-    return arguments
   }
 
-  private func openPdfDocument(_ call: FlutterMethodCall) throws -> Int {
-    let arguments = try getDictionaryArguments(call)
+  private func parsePageIndex(_ args: [String: Any]) throws -> Int {
+    guard var pageIndex = args["page"] as? Int else {
+      throw PdfImageRendererError.badArgument("page")
+    }
 
-    guard let path = arguments["path"] as? String else {
+    // PDF Pages in swift start with 1, so we add 1 to the pageIndex
+    pageIndex += 1
+
+    return pageIndex
+  }
+
+  private var _openPdfs: [Int: CGPDFDocument] = [:]
+  private var _openPdfPages: [Int: [Int: CGPDFPage]] = [:]
+
+  private func getOpenPdf(key: Int) throws -> CGPDFDocument {
+    return try pdfStateQueue.sync {
+      guard let openPdf = _openPdfs[key] else {
+        throw PdfImageRendererError.notOpen(key)
+      }
+
+      return openPdf
+    }
+  }
+
+  private func isPdfOpen(key: Int) -> Bool {
+    return pdfStateQueue.sync {
+      return _openPdfs.keys.contains(key)
+    }
+  }
+
+  private func addOpenPdf(key: Int, pdf: CGPDFDocument) {
+    pdfStateQueue.sync(flags: .barrier) {
+      if _openPdfs.keys.contains(key) {
+        return
+      }
+
+      _openPdfs[key] = pdf
+    }
+  }
+
+  private func removeOpenPdf(key: Int) throws {
+    try pdfStateQueue.sync(flags: .barrier) {
+      if (!_openPdfs.keys.contains(key)) {
+        throw PdfImageRendererError.closeError(key)
+      }
+
+      _openPdfPages.removeValue(forKey: key)
+      _openPdfs.removeValue(forKey: key)
+    }
+  }
+
+  private func getOpenPdfPage(key: Int, pageIndex: Int) throws -> CGPDFPage {
+    return try pdfStateQueue.sync {
+      if (!_openPdfs.keys.contains(key)) {
+        throw PdfImageRendererError.notOpen(key)
+      }
+
+      guard let openPdfPagesForPdf = _openPdfPages[key],
+            let openPdfPage = openPdfPagesForPdf[pageIndex] else {
+        throw PdfImageRendererError.notOpen(key)
+      }
+
+      return openPdfPage
+    }
+  }
+
+  private func addOpenPdfPage(key: Int, pageIndex: Int, page: CGPDFPage) throws {
+    return try pdfStateQueue.sync(flags: .barrier) {
+      if (!_openPdfs.keys.contains(key)) {
+        throw PdfImageRendererError.notOpen(key)
+      }
+
+      if _openPdfPages[key]?.keys.contains(pageIndex) == true {
+        return
+      }
+
+      _openPdfPages[key, default: [:]][pageIndex] = page
+    }
+  }
+
+  private func removeOpenPdfPage(key: Int, pageIndex: Int) throws {
+    try pdfStateQueue.sync(flags: .barrier) {
+      if (!_openPdfs.keys.contains(key)) {
+        throw PdfImageRendererError.notOpen(key)
+      }
+
+      guard var openPdfPagesForPdf = _openPdfPages[key] else {
+        throw PdfImageRendererError.notOpen(key)
+      }
+
+      if (!openPdfPagesForPdf.keys.contains(pageIndex)) {
+        throw PdfImageRendererError.closeError(key)
+      }
+
+      openPdfPagesForPdf.removeValue(forKey: pageIndex)
+
+      if openPdfPagesForPdf.isEmpty {
+        _openPdfPages.removeValue(forKey: key)
+      } else {
+        _openPdfPages[key] = openPdfPagesForPdf
+      }
+    }
+  }
+
+  private func openPDFHandler(args: [String: Any]) throws -> Int {
+    guard let path = args["path"] as? String else {
       throw PdfImageRendererError.badArgument("path")
     }
 
-    if (openPdfs[path.hashValue] != nil) {
+    if (isPdfOpen(key: path.hashValue)) {
       return path.hashValue
     }
 
@@ -59,7 +173,7 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
 
     // Unlock PDF if required.
     if pdf.isEncrypted && !pdf.isUnlocked {
-      if let password = arguments["password"] as? String {
+      if let password = args["password"] as? String {
         pdf.unlockWithPassword(password)
       }
 
@@ -69,33 +183,9 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
       }
     }
 
-    openPdfs[path.hashValue] = pdf
+    addOpenPdf(key: path.hashValue, pdf: pdf)
 
     return path.hashValue
-  }
-
-  private func closePdfDocument(_ hashValue: Int) throws {
-    if (openPdfs[hashValue] == nil) {
-      throw PdfImageRendererError.closeError(hashValue)
-    }
-
-    openPdfs[hashValue] = nil
-  }
-
-  private func getPdfDocument(_ hashValue: Int) throws -> CGPDFDocument {
-    if (openPdfs[hashValue] == nil) {
-      throw PdfImageRendererError.notOpen(hashValue)
-    }
-
-    return openPdfs[hashValue]!
-  }
-
-  private func getPdfPage(_ hashValue: Int, pageIndex: Int) throws -> CGPDFPage {
-    if (openPdfPages[hashValue] == nil || openPdfPages[hashValue]![pageIndex] == nil) {
-      throw PdfImageRendererError.notOpen(hashValue)
-    }
-
-    return openPdfPages[hashValue]![pageIndex]!
   }
 
   private func renderPdfPage(page: CGPDFPage, width: Int, height: Int, scale: Double, x: Int, y: Int) -> Data? {
@@ -129,186 +219,100 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
     return image.pngData()
   }
 
-  private func openPDFHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    NSLog("Start open")
-
-    do {
-      let hash = try openPdfDocument(call)
-      NSLog("Finish open")
-      result(hash)
-    } catch {
-      result(self.handlePdfError(error))
-    }
-
-    result(nil)
-  }
-
-  private func closePDFHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    NSLog("Closing PDF")
-
-    do {
-      let args = try getDictionaryArguments(call)
-
-      guard let hash = args["pdf"] as? Int else {
-        throw PdfImageRendererError.badArgument("pdf")
-      }
-
-      try closePdfDocument(hash)
-
-      result(hash)
-    } catch {
-      result(self.handlePdfError(error))
-    }
-  }
-
-  private func openPDFPageHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    NSLog("Start open page")
-    do {
-      let args = try getDictionaryArguments(call)
-
-      guard let hash = args["pdf"] as? Int else {
-        throw PdfImageRendererError.badArgument("pdf")
-      }
-
-      guard var pageIndex = args["page"] as? Int else {
-        throw PdfImageRendererError.badArgument("page")
-      }
-
-      // PDF Pages in swift start with 1, so we add 1 to the pageIndex
-      pageIndex += 1
-
-      let pdf = try getPdfDocumentHandler(args)
-
-      guard let page = pdf.page(at: pageIndex) else {
-        throw PdfImageRendererError.openPageError(pageIndex)
-      }
-
-      if (openPdfPages[hash] == nil) {
-        openPdfPages[hash] = [:]
-      }
-
-      openPdfPages[hash]![pageIndex] = page
-      NSLog("Finish open page")
-      result(pageIndex)
-    } catch {
-      result(self.handlePdfError(error))
-    }
-
-    result(nil)
-  }
-
-  private func getPdfDocumentHandler(_ args: [String: Any]) throws -> CGPDFDocument {
+  private func closePDFHandler(args: [String: Any]) throws -> Int {
     guard let hash = args["pdf"] as? Int else {
       throw PdfImageRendererError.badArgument("pdf")
     }
 
-    return try getPdfDocument(hash)
+    try removeOpenPdf(key: hash)
+
+    return hash
   }
 
-  private func getPdfPageHandler(_ args: [String: Any]) throws -> CGPDFPage {
+  private func openPDFPageHandler(args: [String: Any]) throws -> Int {
     guard let hash = args["pdf"] as? Int else {
       throw PdfImageRendererError.badArgument("pdf")
     }
 
-    guard var pageIndex = args["page"] as? Int else {
-      throw PdfImageRendererError.badArgument("page")
+    let pageIndex = try self.parsePageIndex(args)
+
+    let pdf = try getOpenPdf(key: hash)
+
+    guard let page = pdf.page(at: pageIndex) else {
+      throw PdfImageRendererError.openPageError(pageIndex)
     }
 
-    // PDF Pages in swift start with 1, so we add 1 to the pageIndex
-    pageIndex += 1
+    try addOpenPdfPage(key: hash, pageIndex: pageIndex, page: page)
 
-    return try getPdfPage(hash, pageIndex: pageIndex)
+    return pageIndex - 1
   }
 
-  private func renderPDFPageHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    dispatchQueue.async {
-      let arguments: Dictionary<String, Any>
-      let page: CGPDFPage
-
-      do {
-        arguments = try self.getDictionaryArguments(call)
-        page = try self.getPdfPageHandler(arguments)
-      } catch {
-        DispatchQueue.main.async {
-          result(self.handlePdfError(error))
-        }
-        return
-      }
-
-      guard let width = arguments["width"] as? Int else {
-        DispatchQueue.main.async {
-          result(self.handlePdfError(PdfImageRendererError.badArgument("width")))
-        }
-        return
-      }
-
-      guard let height = arguments["height"] as? Int else {
-        DispatchQueue.main.async {
-          result(self.handlePdfError(PdfImageRendererError.badArgument("height")))
-        }
-        return
-      }
-
-      let scale = arguments["scale"] as? Double ?? 1.0
-
-      let x = arguments["x"] as? Int ?? 0
-      let y = arguments["y"] as? Int ?? 0
-
-      var data: Data?
-
-      data = self.renderPdfPage(page: page, width: width, height: height, scale: scale, x: x, y: y)
-
-      DispatchQueue.main.async {
-        result(data)
-      }
+  private func closePDFPageHandler(args: [String: Any]) throws -> Int {
+    guard let hash = args["pdf"] as? Int else {
+      throw PdfImageRendererError.badArgument("pdf")
     }
+
+    let pageIndex = try self.parsePageIndex(args)
+
+    try removeOpenPdfPage(key: hash, pageIndex: pageIndex)
+
+    return hash
   }
 
-  private func pdfPageCountHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    dispatchQueue.async {
-      let pdf: CGPDFDocument
-
-      do {
-        let arguments = try self.getDictionaryArguments(call)
-        pdf = try self.getPdfDocumentHandler(arguments)
-      } catch {
-        DispatchQueue.main.async {
-          result(self.handlePdfError(error))
-        }
-        return
-      }
-
-      DispatchQueue.main.async {
-        result(pdf.numberOfPages)
-      }
+  private func renderPDFPageHandler(args: [String: Any]) throws -> Data? {
+    guard let hash = args["pdf"] as? Int else {
+      throw PdfImageRendererError.badArgument("pdf")
     }
+
+    let pageIndex = try self.parsePageIndex(args)
+
+    guard let width = args["width"] as? Int else {
+      throw PdfImageRendererError.badArgument("width")
+    }
+
+    guard let height = args["height"] as? Int else {
+      throw PdfImageRendererError.badArgument("height")
+    }
+
+    let scale = args["scale"] as? Double ?? 1.0
+
+    let x = args["x"] as? Int ?? 0
+    let y = args["y"] as? Int ?? 0
+
+    let page = try self.getOpenPdfPage(key: hash, pageIndex: pageIndex)
+
+    let data = self.renderPdfPage(page: page, width: width, height: height, scale: scale, x: x, y: y)
+
+    return data
   }
 
-  private func pdfPageSizeHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    dispatchQueue.async {
-      let page: CGPDFPage
-
-      do {
-        let arguments = try self.getDictionaryArguments(call)
-        page = try self.getPdfPageHandler(arguments)
-      } catch {
-        DispatchQueue.main.async {
-          result(self.handlePdfError(error))
-        }
-        return
-      }
-
-      let pageRect = page.getBoxRect(.cropBox)
-      let angle = CGFloat(page.rotationAngle) * CGFloat.pi / 180
-      let rotatedPageRect = pageRect.applying(CGAffineTransform(rotationAngle: angle))
-
-      DispatchQueue.main.async {
-        result([
-          "width": Int(rotatedPageRect.width),
-          "height": Int(rotatedPageRect.height)
-        ])
-      }
+  private func pdfPageCountHandler(args: [String: Any]) throws -> Int {
+    guard let hash = args["pdf"] as? Int else {
+      throw PdfImageRendererError.badArgument("pdf")
     }
+
+    let pdf = try self.getOpenPdf(key: hash)
+
+    return pdf.numberOfPages
+  }
+
+  private func pdfPageSizeHandler(args: [String: Any]) throws -> [String: Int] {
+    guard let hash = args["pdf"] as? Int else {
+      throw PdfImageRendererError.badArgument("pdf")
+    }
+
+    let pageIndex = try self.parsePageIndex(args)
+
+    let page = try self.getOpenPdfPage(key: hash, pageIndex: pageIndex)
+
+    let pageRect = page.getBoxRect(.cropBox)
+    let angle = CGFloat(page.rotationAngle) * CGFloat.pi / 180
+    let rotatedPageRect = pageRect.applying(CGAffineTransform(rotationAngle: angle))
+
+    return [
+      "width": Int(rotatedPageRect.width),
+      "height": Int(rotatedPageRect.height)
+    ]
   }
 
   private func handlePdfError(_ error: Error) -> FlutterError {
@@ -328,7 +332,7 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
     case PdfImageRendererError.openPageError(let page):
       return FlutterError(code: "ERR_OPEN", message: "Error while opening the pdf page \(page))", details: error.localizedDescription)
     default:
-      return FlutterError(code: "UNKNOWN_ERROR", message: "An unknown error occured.", details: error)
+      return FlutterError(code: "UNKNOWN_ERROR", message: "An unknown error occured.", details: error.localizedDescription)
     }
   }
 }
