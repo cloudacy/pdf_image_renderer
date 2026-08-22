@@ -1,3 +1,9 @@
+## 3.0.0
+
+- ** BREAKING CHANGE**: Update Android minSDK to 24 (was 21)
+- Updates the minimum supported SDK version to Flutter 3.44/Dart 3.12.
+- Migrates to built-in Kotlin.
+
 ## 2.0.0
 
 - **BREAKING CHANGE**: Add SwiftPM support
