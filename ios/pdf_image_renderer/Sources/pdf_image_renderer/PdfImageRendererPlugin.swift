@@ -2,7 +2,7 @@ import Flutter
 import UIKit
 
 public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
-  let dispatchQueue = DispatchQueue(label: "io.cloudacy.pdf_image_renderer", qos: .userInitiated, attributes: .concurrent)
+  private let dispatchQueue = DispatchQueue(label: "io.cloudacy.pdf_image_renderer", qos: .userInitiated, attributes: .concurrent)
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "pdf_image_renderer", binaryMessenger: registrar.messenger())
@@ -265,7 +265,7 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
   }
 
   private func pdfPageCountHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    DispatchQueue.global(qos: .background).async {
+    dispatchQueue.async {
       let pdf: CGPDFDocument
 
       do {
@@ -285,7 +285,7 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
   }
 
   private func pdfPageSizeHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    DispatchQueue.global(qos: .background).async {
+    dispatchQueue.async {
       let page: CGPDFPage
 
       do {
