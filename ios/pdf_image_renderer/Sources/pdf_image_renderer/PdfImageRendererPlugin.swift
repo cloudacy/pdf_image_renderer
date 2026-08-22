@@ -99,13 +99,8 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
   }
 
   private func renderPdfPage(page: CGPDFPage, width: Int, height: Int, scale: Double, x: Int, y: Int) -> Data? {
-    let image: Data
-
     let pageRect = page.getBoxRect(.cropBox)
-    let size = CGSize(width: Double(width) * scale, height: Double(height) * scale)
-    let scaleCGFloat = CGFloat(scale)
-    let xCGFloat = CGFloat(-x) * scaleCGFloat
-    let yCGFloat = CGFloat(-y) * scaleCGFloat
+    let size = CGSize(width: width, height: height)
 
     // Get rotation angle and convert from degrees to radians:
     let angle = CGFloat(page.rotationAngle) * CGFloat.pi / 180
@@ -113,22 +108,25 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
 
     let transform = page.getDrawingTransform(.cropBox, rect: CGRect(x: 0, y: 0, width: Double(rotatedPageRect.width), height: Double(rotatedPageRect.height)), rotate: 0, preserveAspectRatio: true)
 
-    UIGraphicsBeginImageContext(size)
-    let ctx = UIGraphicsGetCurrentContext()!
-    UIColor.white.set()
-    ctx.fill(CGRect(origin: CGPoint(), size: size))
+    let imageRendererFormat = UIGraphicsImageRendererFormat()
+    imageRendererFormat.opaque = true // White background, no alpha channel required.
+    imageRendererFormat.scale = scale
 
-    ctx.translateBy(x: xCGFloat, y: rotatedPageRect.size.height * scaleCGFloat + yCGFloat)
-    ctx.scaleBy(x: scaleCGFloat, y: -scaleCGFloat)
+    let imageRenderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: imageRendererFormat)
+    let image = imageRenderer.image { uiCtx in
+      let ctx = uiCtx.cgContext
 
-    ctx.concatenate(transform)
+      UIColor.white.setFill()
+      uiCtx.fill(CGRect(origin: .zero, size: size))
 
-    ctx.drawPDFPage(page)
+      ctx.translateBy(x: CGFloat(-x), y: rotatedPageRect.size.height - CGFloat(y))
+      ctx.scaleBy(x: 1, y: -1)
+      ctx.concatenate(transform)
 
-    image = UIGraphicsGetImageFromCurrentImageContext()!.pngData()!
-    UIGraphicsEndImageContext()
+      ctx.drawPDFPage(page)
+    }
 
-    return image
+    return image.pngData()
   }
 
   private func openPDFHandler(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -322,7 +320,7 @@ public class PdfImageRendererPlugin: NSObject, FlutterPlugin {
     case PdfImageRendererError.badArgument(let argument):
       return FlutterError(code: "BAD_ARGS", message: "Argument \(argument) not set", details: error.localizedDescription)
     case PdfImageRendererError.openError(let path):
-        return FlutterError(code: "ERR_OPEN", message: "Error while opening the pdf document for path \(path)", details: error.localizedDescription)
+      return FlutterError(code: "ERR_OPEN", message: "Error while opening the pdf document for path \(path)", details: error.localizedDescription)
     case PdfImageRendererError.closeError(let hash):
       return FlutterError(code: "ERR_CLOSE", message: "Error while closing the pdf document with hash \(hash)", details: error.localizedDescription)
     case PdfImageRendererError.notOpen(let hash):
