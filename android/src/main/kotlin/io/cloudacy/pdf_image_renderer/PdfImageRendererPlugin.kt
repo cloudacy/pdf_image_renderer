@@ -23,6 +23,7 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.floor
 
 /** PdfImageRendererPlugin */
@@ -54,30 +55,51 @@ class PdfImageRendererPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             "openPDF" -> {
-                openPDF(call, result)
+                enqueueTask(call, result, ::openPDF)
             }
             "closePDF" -> {
-                closePDF(call, result)
+                enqueueTask(call, result, ::closePDF)
             }
             "openPDFPage" -> {
-                openPDFPage(call, result)
+                enqueueTask(call, result, ::openPDFPage)
             }
             "closePDFPage" -> {
-                closePDFPage(call, result)
+                enqueueTask(call, result, ::closePDFPage)
             }
             "renderPDFPage" -> {
-                renderPDFPageMethod(call, result)
+                enqueueTask(call, result, ::renderPDFPageMethod)
             }
             "getPDFPageSize" -> {
-                getPDFPageSizeMethod(call, result)
+                enqueueTask(call, result, ::getPDFPageSizeMethod)
             }
             "getPDFPageCount" -> {
-                getPDFPageCountMethod(call, result)
+                enqueueTask(call, result, ::getPDFPageCountMethod)
             }
             else -> {
                 result.notImplemented()
             }
         }
+    }
+
+    private fun enqueueTask(call: MethodCall, result: Result, task: (args: Map<String, Any?>) -> Any?) {
+        Thread {
+            val handler = Handler(Looper.getMainLooper())
+
+            try {
+                @Suppress("UNCHECKED_CAST")
+                val args = call.arguments as? Map<String, Any?> ?: throw PdfImageRendererError.BadArguments()
+
+                val taskResult = task(args)
+
+                handler.post {
+                    result.success(taskResult)
+                }
+            } catch (t: Throwable) {
+                handler.post {
+                    handlePdfError(t, result)
+                }
+            }
+        }.start()
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -129,221 +151,123 @@ class PdfImageRendererPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
         Log.d(LOG_TAG, "doOnAttachedToEngine - OUT")
     }
 
-    private val openPFDs: MutableMap<Int, ParcelFileDescriptor> = mutableMapOf()
-    private val openPDFs: MutableMap<Int, PdfRenderer> = mutableMapOf()
-    private val openPDFPages: MutableMap<Int, Page> = mutableMapOf()
+    private val openPFDs: MutableMap<Int, ParcelFileDescriptor> = ConcurrentHashMap()
+    private val openPDFs: MutableMap<Int, PdfRenderer> = ConcurrentHashMap()
+    private val openPDFPages: MutableMap<Int, Page> = ConcurrentHashMap()
 
-    private fun <T> getArgument(
-        call: MethodCall,
-        result: Result,
-        arg: String,
-        optional: Boolean = false
-    ): T? {
-        val value = call.argument<T>(arg)
-        if (value == null && !optional) result.error(
-            "INVALID_ARGUMENTS",
-            "Invalid or missing \"$arg\" argument.",
-            null
-        )
-        return value
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> getArgument(args: Map<String, Any?>, arg: String): T {
+        return args[arg] as? T ?: throw PdfImageRendererError.BadArgument(arg)
     }
 
-    private fun openPDF(call: MethodCall, result: Result) {
-        val path = getArgument<String>(call, result, "path") ?: return
-        val password = getArgument<String>(call, result, "password", optional = true)
+    private fun getOpenPDF(args: Map<String, Any?>): PdfRenderer {
+        val id = getArgument<Int>(args, "pdf")
+        return openPDFs[id] ?: throw PdfImageRendererError.NotOpen(id)
+    }
 
-        Thread {
-            val handler = Handler(Looper.getMainLooper())
+    private fun getOpenPDFPage(args: Map<String, Any?>): Page {
+        val id = getArgument<Int>(args, "pdf")
+        if (openPDFs[id] == null) throw PdfImageRendererError.NotOpen(id)
+        return openPDFPages[id] ?: throw PdfImageRendererError.PageNotOpen(id)
+    }
 
-            try {
-                val contentResolver = activityBinding!!.activity.contentResolver
-                val pfd: ParcelFileDescriptor =
-                    contentResolver.openFileDescriptor(getURI(path), "r")!!
-                val pfdFd = pfd.fd
+    private fun openPDF(args: Map<String, Any?>): Int {
+        val path = getArgument<String>(args, "path")
+        val password = args["password"] as? String
 
-                openPFDs[pfdFd] = pfd
+        val contentResolver = activityBinding!!.activity.contentResolver
+        val pfd: ParcelFileDescriptor =
+            contentResolver.openFileDescriptor(getURI(path), "r")!!
+        val pfdFd = pfd.fd
 
-                // Allow to open password-protected PDFs on Android 15.0+ devices.
-                if (Build.VERSION.SDK_INT >= 35) {
-                    val loadParams = LoadParams.Builder()
-                    password?.let {
-                        loadParams.setPassword(it)
-                    }
-                    openPDFs[pfdFd] = PdfRenderer(pfd, loadParams.build())
-                } else {
-                    openPDFs[pfdFd] = PdfRenderer(pfd)
-                }
+        openPFDs[pfdFd] = pfd
 
-                handler.post {
-                    result.success(pfdFd)
-                }
-            } catch (e: Exception) {
-                handler.post {
-                    result.error("EXECUTION_ERROR", e.message, null)
-                }
+        // Allow to open password-protected PDFs on Android 15.0+ devices.
+        if (Build.VERSION.SDK_INT >= 35) {
+            val loadParams = LoadParams.Builder()
+            password?.let {
+                loadParams.setPassword(it)
             }
-        }.start()
+            openPDFs[pfdFd] = PdfRenderer(pfd, loadParams.build())
+        } else {
+            openPDFs[pfdFd] = PdfRenderer(pfd)
+        }
+
+        return pfdFd
     }
 
-    private fun closePDF(call: MethodCall, result: Result) {
-        val id = getArgument<Int>(call, result, "pdf") ?: return
+    private fun closePDF(args: Map<String, Any?>): Int {
+        val id = getArgument<Int>(args, "pdf")
 
         // Close the page of the pdf (if any is open)
         openPDFPages[id]?.close()
         openPDFPages.remove(id)
 
-        try {
-            // Close the PdfRenderer and the ParcelFileDescriptor.
-            openPDFs[id]?.close()
-            openPFDs[id]?.close()
-            openPDFs.remove(id)
-            openPFDs.remove(id)
+        // Close the PdfRenderer and the ParcelFileDescriptor.
+        openPDFs[id]?.close()
+        openPFDs[id]?.close()
+        openPDFs.remove(id)
+        openPFDs.remove(id)
 
-            result.success(id)
-        } catch (e: Exception) {
-            result.error("EXECUTION_ERROR", e.message, null)
-        }
+        return id
     }
 
-    private fun openPDFPage(call: MethodCall, result: Result) {
-        val id = getArgument<Int>(call, result, "pdf") ?: return
+    private fun openPDFPage(args: Map<String, Any?>): Int {
+        val id = getArgument<Int>(args, "pdf")
+        val pageIndex = getArgument<Int>(args, "page")
 
-        val pageIndex = getArgument<Int>(call, result, "page") ?: return
-
-        val pdf = openPDFs[id]
-        if (pdf == null) {
-            result.error("INVALID_ARGUMENTS", "No PDF found for id $id.", null)
-            return
-        }
+        val pdf = openPDFs[id] ?: throw PdfImageRendererError.NotOpen(id)
 
         if (openPDFPages[id] != null) {
-            result.error("INVALID_ARGUMENTS", "PDF $id already has an open page.", null)
-            return
+            throw PdfImageRendererError.PageAlreadyOpen(id)
         }
 
-        Thread {
-            val handler = Handler(Looper.getMainLooper())
+        openPDFPages[id] = pdf.openPage(pageIndex)
 
-            try {
-                openPDFPages[id] = pdf.openPage(pageIndex)
-
-                handler.post {
-                    result.success(pageIndex)
-                }
-            } catch (e: Exception) {
-                handler.post {
-                    result.error("EXECUTION_ERROR", e.message, null)
-                }
-            }
-        }.start()
+        return pageIndex
     }
 
-    private fun closePDFPage(call: MethodCall, result: Result) {
-        val id = getArgument<Int>(call, result, "pdf") ?: return
-        val pageIndex = getArgument<Int>(call, result, "page") ?: return
+    private fun closePDFPage(args: Map<String, Any?>): Int {
+        val id = getArgument<Int>(args, "pdf")
+        val pageIndex = getArgument<Int>(args, "page")
 
-        if (openPDFs[id] == null) {
-            result.error("INVALID_ARGUMENTS", "No PDF found for id $id.", null)
-            return
-        }
+        val page = getOpenPDFPage(args)
 
-        val page = openPDFPages[id]
-        if (page == null) {
-            result.error("INVALID_ARGUMENTS", "PDF $id has no open page.", null)
-            return
-        }
+        page.close()
+        openPDFPages.remove(id)
 
-        try {
-            page.close()
-            openPDFPages.remove(id)
-
-            result.success(pageIndex)
-        } catch (e: Exception) {
-            result.error("EXECUTION_ERROR", e.message, null)
-        }
+        return pageIndex
     }
 
-    private fun getPDFPageCountMethod(call: MethodCall, result: Result) {
-        val id = getArgument<Int>(call, result, "pdf") ?: return
-
-        val pdf = openPDFs[id]
-        if (pdf == null) {
-            result.error("INVALID_ARGUMENTS", "No PDF found for id $id.", null)
-            return
-        }
-
-        try {
-            result.success(pdf.pageCount)
-        } catch (e: Exception) {
-            result.error("EXECUTION_ERROR", e.message, null)
-        }
+    private fun getPDFPageCountMethod(args: Map<String, Any?>): Int {
+        return getOpenPDF(args).pageCount
     }
 
-    private fun getPDFPageSizeMethod(call: MethodCall, result: Result) {
-        val id = getArgument<Int>(call, result, "pdf") ?: return
+    private fun getPDFPageSizeMethod(args: Map<String, Any?>): Map<String, Int> {
+        val page = getOpenPDFPage(args)
 
-        if (openPDFs[id] == null) {
-            result.error("INVALID_ARGUMENTS", "No PDF found for id $id.", null)
-            return
-        }
-
-        val page = openPDFPages[id]
-        if (page == null) {
-            result.error("INVALID_ARGUMENTS", "PDF $id has no open page.", null)
-            return
-        }
-
-        try {
-            result.success(
-                mapOf(
-                    "width" to page.width,
-                    "height" to page.height
-                )
-            )
-        } catch (e: Exception) {
-            result.error("EXECUTION_ERROR", e.message, null)
-        }
+        return mapOf(
+            "width" to page.width,
+            "height" to page.height
+        )
     }
 
-    private fun renderPDFPageMethod(call: MethodCall, result: Result) {
-        val id = getArgument<Int>(call, result, "pdf") ?: return
+    private fun renderPDFPageMethod(args: Map<String, Any?>): ByteArray {
+        val page = getOpenPDFPage(args)
 
-        val pdf = openPDFs[id]
-        if (pdf == null) {
-            result.error("INVALID_ARGUMENTS", "No PDF found for id $id.", null)
-            return
-        }
+        val x = getArgument<Int>(args, "x")
+        val y = getArgument<Int>(args, "y")
+        val width = getArgument<Int>(args, "width")
+        val height = getArgument<Int>(args, "height")
+        val scale = getArgument<Double>(args, "scale")
+        val background = args["background"] as? String
 
-        val page = openPDFPages[id]
-        if (page == null) {
-            result.error("INVALID_ARGUMENTS", "Page null for PDF $id is not open.", null)
-            return
-        }
+        val bitmap = renderPDFPage(page, x, y, width, height, scale.toFloat(), background)
 
-        val x = getArgument<Int>(call, result, "x") ?: return
-        val y = getArgument<Int>(call, result, "y") ?: return
-        val width = getArgument<Int>(call, result, "width") ?: return
-        val height = getArgument<Int>(call, result, "height") ?: return
-        val scale = getArgument<Double>(call, result, "scale") ?: return
-        val background = getArgument<String>(call, result, "background", true)
+        val byteStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream)
 
-        Thread {
-            val handler = Handler(Looper.getMainLooper())
-
-            try {
-                val bitmap = renderPDFPage(page, x, y, width, height, scale.toFloat(), background)
-
-                val byteStream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream)
-                handler.post {
-                    result.success(byteStream.toByteArray())
-                }
-            } catch (e: Exception) {
-                handler.post {
-                    result.error("EXECUTION_ERROR", e.message, null)
-                }
-            }
-        }.start()
+        return byteStream.toByteArray()
     }
 
     private fun renderPDFPage(
@@ -395,4 +319,22 @@ class PdfImageRendererPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
             Uri.fromFile(File(uri))
         } else parsed
     }
+
+    private fun handlePdfError(error: Throwable, result: Result) {
+        when (error) {
+            is PdfImageRendererError -> result.error("INVALID_ARGUMENTS", error.message, null)
+            else -> result.error("EXECUTION_ERROR", error.message ?: error.toString(), null)
+        }
+    }
+}
+
+sealed class PdfImageRendererError(message: String) : Exception(message) {
+    class BadArguments : PdfImageRendererError("Arguments have to be of type Map<String, Any?>.")
+    class BadArgument(argument: String) :
+        PdfImageRendererError("Invalid or missing \"$argument\" argument.")
+
+    class NotOpen(pdfId: Int) : PdfImageRendererError("No PDF found for id $pdfId.")
+    class PageNotOpen(pdfId: Int) : PdfImageRendererError("PDF $pdfId has no open page.")
+    class PageAlreadyOpen(pdfId: Int) :
+        PdfImageRendererError("PDF $pdfId already has an open page.")
 }
