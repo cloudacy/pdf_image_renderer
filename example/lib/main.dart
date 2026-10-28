@@ -167,15 +167,11 @@ class _PdfImageRendererExampleState extends State<PdfImageRendererExample> {
                 child: const Text('Select PDF'),
                 onPressed: () async {
                   try {
-                    final result =
-                        await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
-
-                    if (result != null) {
-                      await openPdf(path: result.paths[0]!);
-                      pageIndex = 0;
-                      count = await pdf!.getPageCount();
-                      await renderPage();
-                    }
+                    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+                    await openPdf(path: result[0].path!);
+                    pageIndex = 0;
+                    count = await pdf!.getPageCount();
+                    await renderPage();
                   } catch (e) {
                     showError(e);
                   }
