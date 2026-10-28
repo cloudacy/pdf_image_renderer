@@ -9,6 +9,10 @@
 - Fixed and restructured queue handling on Android and iOS.
 - Fixed opening the same PDF multiple times on iOS.
 
+### 3.0.1
+
+- Remove gitignored files. (pdf_image_renderer.iml, pubspec.lock)
+
 ## 2.0.0
 
 - **BREAKING CHANGE**: Add SwiftPM support
