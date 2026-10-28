@@ -1,10 +1,13 @@
 ## 3.0.0
 
-- ** BREAKING CHANGE**: Update Android minSDK to 24 (was 21)
-- Updates the minimum supported SDK version to Flutter 3.44/Dart 3.12.
-- Migrates to built-in Kotlin.
-- Now uses `UIGraphicsImageRenderer` on iOS.
-- Fixed and restructured queue handling on iOS.
+- **BREAKING CHANGE**: New version requirements:
+  - Android: minSdk = 24 (was 21)
+  - dart >=3.12
+  - Flutter >=3.44
+- **BREAKING CHANGE**: Migrated to built-in Kotlin. Android apps must use AGP >=9.
+- iOS now renders pages with `UIGraphicsImageRenderer`.
+- Fixed and restructured queue handling on Android and iOS.
+- Fixed opening the same PDF multiple times on iOS.
 
 ## 2.0.0
 
